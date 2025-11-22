@@ -1,0 +1,11 @@
+com\bookstore\service\ChapterService.class
+com\bookstore\repository\BookMapper.class
+com\bookstore\entity\Book.class
+com\bookstore\service\BookService.class
+com\bookstore\entity\Distributor.class
+com\bookstore\controller\BookController.class
+com\bookstore\vo\ChapterVO.class
+com\bookstore\entity\Chapter.class
+com\bookstore\repository\DistributorRepository.class
+com\bookstore\vo\BookVO.class
+com\bookstore\common\Result.class

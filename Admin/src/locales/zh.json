@@ -1,0 +1,64 @@
+{
+  "login": {
+    "title": "欢迎回来",
+    "subtitle": "输入您的凭据以访问管理后台。",
+    "username": "用户名或邮箱",
+    "password": "密码",
+    "remember": "记住我",
+    "forgot": "忘记密码?",
+    "signin": "登录",
+    "footer": "© 2024 Novel Inc. 版权所有。",
+    "analytics": {
+      "title": "强大的分析",
+      "desc": "通过我们全面的分析仪表盘深入了解您的小说表现、读者参与度和收入。"
+    }
+  },
+  "menu": {
+    "dashboard": "仪表盘",
+    "book": "书籍管理",
+    "user": "用户管理",
+    "order": "订阅管理",
+    "distributor": "分销管理",
+    "system": "系统管理"
+  },
+  "dashboard": {
+    "activeUsers": "活跃用户",
+    "totalBooks": "书籍总数",
+    "totalRevenue": "总收入",
+    "readingTime": "阅读时长 (小时)",
+    "revenueTrend": "收入趋势"
+  },
+  "book": {
+    "title": "书籍管理",
+    "search": "搜索书籍",
+    "add": "新增书籍",
+    "edit": "编辑",
+    "delete": "删除",
+    "name": "书名",
+    "author": "作者",
+    "category": "分类",
+    "description": "描述",
+    "status": "状态",
+    "rating": "评分"
+  },
+  "user": {
+    "title": "用户管理",
+    "username": "用户名",
+    "nickname": "昵称",
+    "coins": "金币",
+    "svip": "SVIP",
+    "status": "状态",
+    "active": "正常",
+    "disabled": "禁用",
+    "enable": "激活",
+    "disable": "禁用"
+  },
+  "common": {
+    "confirm": "确认",
+    "cancel": "取消",
+    "success": "成功",
+    "error": "错误",
+    "loading": "加载中...",
+    "logout": "退出登录"
+  }
+}

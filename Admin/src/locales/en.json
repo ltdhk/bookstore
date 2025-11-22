@@ -1,0 +1,64 @@
+{
+  "login": {
+    "title": "Welcome Back",
+    "subtitle": "Enter your credentials to access the admin dashboard.",
+    "username": "Username or Email",
+    "password": "Password",
+    "remember": "Remember Me",
+    "forgot": "Forgot Password?",
+    "signin": "Sign In",
+    "footer": "© 2024 Novel Inc. All rights reserved.",
+    "analytics": {
+      "title": "Powerful Analytics",
+      "desc": "Gain deep insights into your novel's performance, reader engagement, and revenue with our comprehensive analytics dashboard."
+    }
+  },
+  "menu": {
+    "dashboard": "Dashboard",
+    "book": "Book Management",
+    "user": "User Management",
+    "order": "Subscription",
+    "distributor": "Distribution",
+    "system": "System"
+  },
+  "dashboard": {
+    "activeUsers": "Active Users",
+    "totalBooks": "Total Books",
+    "totalRevenue": "Total Revenue",
+    "readingTime": "Reading Time (hrs)",
+    "revenueTrend": "Revenue Trend"
+  },
+  "book": {
+    "title": "Book Management",
+    "search": "Search Books",
+    "add": "Add Book",
+    "edit": "Edit",
+    "delete": "Delete",
+    "name": "Book Name",
+    "author": "Author",
+    "category": "Category",
+    "description": "Description",
+    "status": "Status",
+    "rating": "Rating"
+  },
+  "user": {
+    "title": "User Management",
+    "username": "Username",
+    "nickname": "Nickname",
+    "coins": "Coins",
+    "svip": "SVIP",
+    "status": "Status",
+    "active": "Active",
+    "disabled": "Disabled",
+    "enable": "Enable",
+    "disable": "Disable"
+  },
+  "common": {
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "success": "Success",
+    "error": "Error",
+    "loading": "Loading...",
+    "logout": "Logout"
+  }
+}
