@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
+import 'package:book_store/src/features/bookshelf/providers/bookshelf_provider.dart';
 
 class BookDetailScreen extends ConsumerWidget {
   final String bookId;
@@ -16,6 +17,10 @@ class BookDetailScreen extends ConsumerWidget {
     const title = 'Reborn: No More Second Chances for My Treacherous Niece';
     const author = 'Ernest';
     const description = 'This is a placeholder description for the book. It tells the story of...';
+    const category = 'Fiction';
+
+    // Check if book is already in bookshelf
+    final isInBookshelf = ref.watch(isBookInBookshelfProvider(bookId));
 
     return Scaffold(
       appBar: AppBar(
@@ -119,18 +124,62 @@ class BookDetailScreen extends ConsumerWidget {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () {},
+                    onPressed: isInBookshelf
+                        ? () async {
+                            // Remove from bookshelf
+                            await ref.read(bookshelfProvider.notifier).removeBook(bookId);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Removed from bookshelf'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          }
+                        : () async {
+                            // Add to bookshelf
+                            await ref.read(bookshelfProvider.notifier).addBook(
+                                  id: bookId,
+                                  title: title,
+                                  author: author,
+                                  coverUrl: coverUrl,
+                                  category: category,
+                                );
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Added to bookshelf'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          },
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16.0),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+                      side: BorderSide(
+                        color: isInBookshelf ? Colors.red : Theme.of(context).primaryColor,
+                      ),
+                      foregroundColor: isInBookshelf ? Colors.red : Theme.of(context).primaryColor,
                     ),
-                    child: const Text('Add to Bookshelf'),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          isInBookshelf ? Icons.check : Icons.add,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(isInBookshelf ? 'In Bookshelf' : 'Add to Bookshelf'),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () => context.push('/book/${bookId}/read'),
+                    onPressed: () => context.push('/book/$bookId/read'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).primaryColor,
                       foregroundColor: Colors.white,

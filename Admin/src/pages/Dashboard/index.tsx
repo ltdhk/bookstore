@@ -2,6 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Card, Col, Row, Statistic } from 'antd';
 import { UserOutlined, BookOutlined, DollarOutlined, ReadOutlined } from '@ant-design/icons';
 import { getDashboardStats } from '../../api/dashboard';
+import RevenueChart from '../../components/Charts/RevenueChart';
+import TopBooksChart from '../../components/Charts/TopBooksChart';
+import UserMapChart from '../../components/Charts/UserMapChart';
 
 const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<any>({});
@@ -11,8 +14,8 @@ const Dashboard: React.FC = () => {
     const fetchStats = async () => {
       setLoading(true);
       try {
-        const res = await getDashboardStats();
-        setStats(res);
+        const res: any = await getDashboardStats();
+        setStats(res.data || {});
       } catch (error) {
         console.error(error);
       } finally {
@@ -68,9 +71,26 @@ const Dashboard: React.FC = () => {
       </Row>
       
       <div style={{ marginTop: 24 }}>
-        <h3>收入趋势</h3>
-        <div style={{ height: 300, background: '#f0f2f5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            图表占位符 (可使用 ECharts)
+        <Row gutter={24}>
+          <Col span={16}>
+            <div style={{ background: '#fff', padding: 24, borderRadius: 8 }}>
+              <h3>收入趋势</h3>
+              <RevenueChart />
+            </div>
+          </Col>
+          <Col span={8}>
+            <div style={{ background: '#fff', padding: 24, borderRadius: 8 }}>
+              <h3>用户分布</h3>
+              <UserMapChart />
+            </div>
+          </Col>
+        </Row>
+      </div>
+
+      <div style={{ marginTop: 24 }}>
+        <div style={{ background: '#fff', padding: 24, borderRadius: 8 }}>
+          <h3>热门书籍 Top 10</h3>
+          <TopBooksChart />
         </div>
       </div>
     </div>

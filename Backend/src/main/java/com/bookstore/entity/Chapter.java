@@ -14,7 +14,9 @@ public class Chapter {
     private Long bookId;
     private String title;
     private String content;
+    private Boolean isFree;
     private Integer orderNum;
+
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
@@ -22,8 +24,6 @@ public class Chapter {
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
 
-    @TableLogic
-    private Integer deleted;
 
-    private String language;
+
 }

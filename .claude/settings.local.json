@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev:*)",
+      "Bash(timeout /t 5 /nobreak)",
+      "Bash(curl:*)",
+      "Bash(ping:*)",
+      "Bash(nul)",
+      "Bash(taskkill:*)",
+      "Bash(token.json)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(mvn spring-boot:run:*)",
+      "Bash(dir:*)",
+      "Bash(flutter analyze:*)",
+      "Bash(flutter pub run build_runner build:*)",
+      "Bash(npm install:*)",
+      "Bash(flutter clean:*)",
+      "Bash(flutter pub get:*)",
+      "Bash(flutter build:*)",
+      "Bash(mvn clean compile:*)",
+      "Bash(timeout /t 30 /nobreak)",
+      "Bash(mvn compile:*)",
+      "Bash(flutter gen-l10n:*)",
+      "Bash(dart run build_runner:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

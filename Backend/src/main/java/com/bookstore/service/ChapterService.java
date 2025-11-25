@@ -8,5 +8,8 @@ import java.util.List;
 
 public interface ChapterService extends IService<Chapter> {
     List<ChapterVO> getChaptersByBookId(Long bookId);
+    List<ChapterVO> getChaptersByBookId(Long bookId, Boolean includeFirstChapter);
+    List<ChapterVO> getChaptersByBookId(Long bookId, Boolean includeFirstChapter, Long userId);
     ChapterVO getChapterDetails(Long id);
+    ChapterVO getChapterDetails(Long id, Long userId);
 }

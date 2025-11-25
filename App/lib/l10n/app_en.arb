@@ -6,5 +6,18 @@
   "home": "Home",
   "bookshelf": "Bookshelf",
   "profile": "My",
-  "searchHint": "Search for novel"
+  "searchHint": "Search for novel",
+  "settings": "Setting",
+  "darkMode": "Dark Mode",
+  "alwaysLightMode": "Always Light Mode",
+  "autoUnlockChapter": "Auto unlock chapter",
+  "language": "Language",
+  "versionUpdate": "Version Update",
+  "about": "About Novel Master",
+  "rate": "Rate Novel Master",
+  "followSystem": "Follow System",
+  "alwaysDark": "Always Dark Mode",
+  "alwaysLight": "Always Light Mode",
+  "svipMember": "SVIP",
+  "regularMember": "Member"
 }

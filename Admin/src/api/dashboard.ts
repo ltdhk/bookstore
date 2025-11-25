@@ -2,7 +2,7 @@ import request from '../utils/request';
 
 export const getDashboardStats = () => {
   return request({
-    url: '/dashboard/stats',
+    url: '/admin/dashboard/stats',
     method: 'get',
   });
 };

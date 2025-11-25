@@ -12,8 +12,8 @@ const UserManagement: React.FC = () => {
     setLoading(true);
     try {
       const res: any = await getUsers({ page, size: pagination.pageSize });
-      setData(res.records);
-      setPagination({ ...pagination, current: page, total: res.total });
+      setData(res.data?.records || []);
+      setPagination({ ...pagination, current: page, total: res.data?.total || 0 });
     } catch (error) {
       console.error(error);
     } finally {
@@ -47,8 +47,10 @@ const UserManagement: React.FC = () => {
 
   const columns = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
-    { title: '用户名', dataIndex: 'username', key: 'username' },
-    { title: '昵称', dataIndex: 'nickname', key: 'nickname' },
+    { title: '用户名', dataIndex: 'username', key: 'username', width: 120 },
+    { title: '昵称', dataIndex: 'nickname', key: 'nickname', width: 120 },
+    { title: '邮箱', dataIndex: 'email', key: 'email', width: 200 },
+    { title: '手机号', dataIndex: 'phone', key: 'phone', width: 130 },
     { title: '金币', dataIndex: 'coins', key: 'coins', width: 100 },
     {
       title: 'SVIP',
@@ -72,6 +74,7 @@ const UserManagement: React.FC = () => {
       title: '操作',
       key: 'action',
       width: 200,
+      fixed: 'right' as const,
       render: (_: any, record: any) => (
         <Space>
           <Button
@@ -98,6 +101,7 @@ const UserManagement: React.FC = () => {
         dataSource={data}
         rowKey="id"
         loading={loading}
+        scroll={{ x: 1200 }}
         pagination={{
           ...pagination,
           onChange: (page) => fetchUsers(page),

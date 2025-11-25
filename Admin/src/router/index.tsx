@@ -3,7 +3,14 @@ import Login from '../pages/Login';
 import Dashboard from '../pages/Dashboard';
 import BookManagement from '../pages/Book';
 import UserManagement from '../pages/User';
+import DistributorManagement from '../pages/Distributor';
+import SystemManagement from '../pages/System';
+import SubscriptionManagement from '../pages/Subscription';
+import ProductManagement from '../pages/Subscription/ProductManagement';
+import DistributorRevenue from '../pages/Subscription/DistributorRevenue';
+import AdvertisementManagement from '../pages/Advertisement';
 import MainLayout from '../layouts/MainLayout';
+import ProtectedRoute from '../components/ProtectedRoute';
 
 const router = createBrowserRouter([
   {
@@ -12,7 +19,11 @@ const router = createBrowserRouter([
   },
   {
     path: '/',
-    element: <MainLayout />,
+    element: (
+      <ProtectedRoute>
+        <MainLayout />
+      </ProtectedRoute>
+    ),
     children: [
       {
         path: '/',
@@ -31,12 +42,28 @@ const router = createBrowserRouter([
         element: <div>订单管理 (开发中)</div>,
       },
       {
+        path: '/subscription',
+        element: <SubscriptionManagement />,
+      },
+      {
+        path: '/subscription/products',
+        element: <ProductManagement />,
+      },
+      {
+        path: '/subscription/distributor-revenue',
+        element: <DistributorRevenue />,
+      },
+      {
         path: '/distributor',
-        element: <div>分销管理 (开发中)</div>,
+        element: <DistributorManagement />,
       },
       {
         path: '/system',
-        element: <div>系统管理 (开发中)</div>,
+        element: <SystemManagement />,
+      },
+      {
+        path: '/advertisement',
+        element: <AdvertisementManagement />,
       },
     ],
   },

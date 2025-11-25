@@ -47,6 +47,13 @@ public class UserController {
         return Result.success("Removed from bookshelf");
     }
 
+    @GetMapping("/bookshelf/check")
+    public Result<Boolean> checkBookInShelf(HttpServletRequest request, @org.springframework.web.bind.annotation.RequestParam Long bookId) {
+        Long userId = (Long) request.getAttribute("userId");
+        boolean isInShelf = bookshelfService.isBookInShelf(userId, bookId);
+        return Result.success(isInShelf);
+    }
+
     @org.springframework.web.bind.annotation.PostMapping("/wallet/topup")
     public Result<UserVO> topUp(HttpServletRequest request, @org.springframework.web.bind.annotation.RequestBody java.util.Map<String, Integer> body) {
         Long userId = (Long) request.getAttribute("userId");

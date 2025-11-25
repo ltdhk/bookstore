@@ -15,10 +15,18 @@ public class Book {
     private String author;
     private String coverUrl;
     private String description;
-    private String category;
+    private Long categoryId;
     private String status;
+    private String completionStatus;
     private Long views;
+    private Long likes;
     private Double rating;
+
+    // New fields
+    private String language;
+    private Boolean requiresMembership;
+    private Boolean isRecommended;
+    private Boolean isHot;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;

@@ -22,4 +22,43 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get searchHint => '搜索小说';
+
+  @override
+  String get settings => '设置';
+
+  @override
+  String get darkMode => '深色模式';
+
+  @override
+  String get alwaysLightMode => '始终浅色模式';
+
+  @override
+  String get autoUnlockChapter => '自动解锁章节';
+
+  @override
+  String get language => '语言';
+
+  @override
+  String get versionUpdate => '版本更新';
+
+  @override
+  String get about => '关于我们';
+
+  @override
+  String get rate => '去评分';
+
+  @override
+  String get followSystem => '跟随系统';
+
+  @override
+  String get alwaysDark => '始终深色模式';
+
+  @override
+  String get alwaysLight => '始终浅色模式';
+
+  @override
+  String get svipMember => 'SVIP会员';
+
+  @override
+  String get regularMember => '普通会员';
 }

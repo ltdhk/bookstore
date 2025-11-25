@@ -81,7 +81,7 @@ public class BookshelfServiceImpl extends ServiceImpl<BookshelfMapper, Bookshelf
         Bookshelf bookshelf = getOne(new LambdaQueryWrapper<Bookshelf>()
                 .eq(Bookshelf::getUserId, userId)
                 .eq(Bookshelf::getBookId, bookId));
-        
+
         if (bookshelf == null) {
             // Auto add to shelf if reading? Optional. For now, just return or error.
             // Let's auto-add.
@@ -90,8 +90,16 @@ public class BookshelfServiceImpl extends ServiceImpl<BookshelfMapper, Bookshelf
                     .eq(Bookshelf::getUserId, userId)
                     .eq(Bookshelf::getBookId, bookId));
         }
-        
+
         bookshelf.setLastReadChapterId(chapterId);
         updateById(bookshelf);
+    }
+
+    @Override
+    public boolean isBookInShelf(Long userId, Long bookId) {
+        long count = count(new LambdaQueryWrapper<Bookshelf>()
+                .eq(Bookshelf::getUserId, userId)
+                .eq(Bookshelf::getBookId, bookId));
+        return count > 0;
     }
 }

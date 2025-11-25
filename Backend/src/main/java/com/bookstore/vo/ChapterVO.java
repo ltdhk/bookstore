@@ -9,4 +9,6 @@ public class ChapterVO {
     private String title;
     private String content;
     private Integer orderNum;
+    private Boolean isFree;
+    private Boolean canAccess;
 }

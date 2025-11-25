@@ -127,6 +127,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Search for novel'**
   String get searchHint;
+
+  /// No description provided for @settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Setting'**
+  String get settings;
+
+  /// No description provided for @darkMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark Mode'**
+  String get darkMode;
+
+  /// No description provided for @alwaysLightMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Always Light Mode'**
+  String get alwaysLightMode;
+
+  /// No description provided for @autoUnlockChapter.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto unlock chapter'**
+  String get autoUnlockChapter;
+
+  /// No description provided for @language.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get language;
+
+  /// No description provided for @versionUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Version Update'**
+  String get versionUpdate;
+
+  /// No description provided for @about.
+  ///
+  /// In en, this message translates to:
+  /// **'About Novel Master'**
+  String get about;
+
+  /// No description provided for @rate.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate Novel Master'**
+  String get rate;
+
+  /// No description provided for @followSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow System'**
+  String get followSystem;
+
+  /// No description provided for @alwaysDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Always Dark Mode'**
+  String get alwaysDark;
+
+  /// No description provided for @alwaysLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Always Light Mode'**
+  String get alwaysLight;
+
+  /// No description provided for @svipMember.
+  ///
+  /// In en, this message translates to:
+  /// **'SVIP'**
+  String get svipMember;
+
+  /// No description provided for @regularMember.
+  ///
+  /// In en, this message translates to:
+  /// **'Member'**
+  String get regularMember;
 }
 
 class _AppLocalizationsDelegate

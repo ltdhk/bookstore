@@ -16,6 +16,10 @@ public class Order {
 
     private Long userId;
 
+    private Long distributorId; // Distributor ID (from passcode)
+
+    private Long sourcePasscodeId; // Source Passcode ID
+
     private String orderNo;
 
     private BigDecimal amount;
@@ -25,6 +29,35 @@ public class Order {
     private String platform; // AppStore, GooglePay
 
     private String productId;
+
+    // Subscription fields
+    private String orderType; // onetime, subscription
+
+    private String subscriptionPeriod; // monthly, quarterly, yearly
+
+    private LocalDateTime subscriptionStartDate;
+
+    private LocalDateTime subscriptionEndDate;
+
+    private Boolean isAutoRenew;
+
+    private LocalDateTime cancelDate;
+
+    private String cancelReason;
+
+    // Platform transaction fields
+    private String originalTransactionId; // Apple/Google original transaction ID
+
+    private String platformTransactionId;
+
+    private String purchaseToken; // Google purchase token
+
+    private String receiptData; // Apple receipt data
+
+    // Source tracking fields
+    private Long sourceBookId; // From which book
+
+    private String sourceEntry; // profile, reader
 
     private LocalDateTime createTime;
 

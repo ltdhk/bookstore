@@ -3,5 +3,18 @@
   "home": "首页",
   "bookshelf": "书架",
   "profile": "我的",
-  "searchHint": "搜索小说"
+  "searchHint": "搜索小说",
+  "settings": "设置",
+  "darkMode": "深色模式",
+  "alwaysLightMode": "始终浅色模式",
+  "autoUnlockChapter": "自动解锁章节",
+  "language": "语言",
+  "versionUpdate": "版本更新",
+  "about": "关于我们",
+  "rate": "去评分",
+  "followSystem": "跟随系统",
+  "alwaysDark": "始终深色模式",
+  "alwaysLight": "始终浅色模式",
+  "svipMember": "SVIP会员",
+  "regularMember": "普通会员"
 }

@@ -11,4 +11,5 @@ public interface BookshelfService extends IService<Bookshelf> {
     void addBookToShelf(Long userId, Long bookId);
     void removeBookFromShelf(Long userId, Long bookId);
     void updateReadingProgress(Long userId, Long bookId, Long chapterId);
+    boolean isBookInShelf(Long userId, Long bookId);
 }

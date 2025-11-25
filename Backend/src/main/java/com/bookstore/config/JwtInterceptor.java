@@ -20,19 +20,23 @@ public class JwtInterceptor implements HandlerInterceptor {
             return true;
         }
 
+        String uri = request.getRequestURI();
+
+        // Check if this is an optional auth path (public but benefits from user context)
+        boolean isOptionalAuthPath = uri.startsWith("/api/v1/books");
+
         String authHeader = request.getHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
             if (jwtUtils.validateToken(token)) {
                 String role = jwtUtils.getRoleFromToken(token);
-                String uri = request.getRequestURI();
 
                 if (uri.startsWith("/api/admin") && !"admin".equals(role)) {
                     response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                     response.getWriter().write("{\"code\": 403, \"message\": \"Forbidden\", \"data\": null}");
                     return false;
                 }
-                
+
                 // Optional: Prevent admins from accessing user APIs if strict separation is needed
                 // if (uri.startsWith("/api/v1") && "admin".equals(role)) { ... }
 
@@ -42,6 +46,11 @@ public class JwtInterceptor implements HandlerInterceptor {
                 request.setAttribute("role", role);
                 return true;
             }
+        }
+
+        // For optional auth paths, allow access without token (userId will be null)
+        if (isOptionalAuthPath) {
+            return true;
         }
 
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

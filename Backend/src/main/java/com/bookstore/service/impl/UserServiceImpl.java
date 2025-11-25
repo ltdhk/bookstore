@@ -24,6 +24,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         User user = getOne(new LambdaQueryWrapper<User>()
                 .eq(User::getUsername, request.getUsername()));
 
+        // Password is MD5 encrypted on client side before being sent
         if (user == null || !user.getPassword().equals(request.getPassword())) {
             throw new RuntimeException("Invalid username or password");
         }
@@ -41,12 +42,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
         User user = new User();
         BeanUtils.copyProperties(request, user);
+        // Password is already MD5 encrypted on client side, stored as-is
+        user.setEmail(request.getUsername()); // Set email same as username
         user.setNickname(request.getNickname() != null ? request.getNickname() : "User_" + System.currentTimeMillis());
         user.setAvatar("https://api.dicebear.com/7.x/avataaars/svg?seed=" + request.getUsername());
         user.setCoins(0);
         user.setBonus(0);
         user.setIsSvip(false);
-        
+
         save(user);
 
         return convertToVO(user);

@@ -10,9 +10,9 @@ spring:
     name: bookstore-backend
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/bookstore_db?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
-    username: root
-    password: password # PLEASE CHANGE THIS
+    url: jdbc:mysql://bookdb.c9c0k204iijc.ap-southeast-1.rds.amazonaws.com:3306/bookdb?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
+    username: admin
+    password: Ltd5030229 # PLEASE CHANGE THIS
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: GMT+8
@@ -31,3 +31,10 @@ mybatis-plus:
 jwt:
   secret: 4d5354384e6e465344577563423234664d445a74675775684e326c46566a4d32
   expiration: 86400000 # 24 hours
+
+aws:
+  s3:
+    access-key: YOUR_AWS_ACCESS_KEY # 请替换为你的AWS Access Key
+    secret-key: YOUR_AWS_SECRET_KEY # 请替换为你的AWS Secret Key
+    region: ap-southeast-1 # AWS区域，例如: us-east-1, ap-southeast-1
+    bucket-name: your-bucket-name # 你的S3桶名称

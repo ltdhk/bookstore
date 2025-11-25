@@ -32,6 +32,19 @@ public class AdminAuthController {
         return Result.success("Initialized");
     }
 
+    @PostMapping("/logout")
+    public Result<String> logout() {
+        // 如果使用JWT，无需后端处理，前端删除token即可
+        // 如果使用session，可以在这里清除session
+        return Result.success("Logout successful");
+    }
+
+    @GetMapping("/verify")
+    public Result<String> verify() {
+        // 验证token有效性
+        return Result.success("Token is valid");
+    }
+
     @Data
     static class LoginRequest {
         private String username;

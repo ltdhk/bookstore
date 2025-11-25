@@ -8,6 +8,7 @@ import com.bookstore.vo.ChapterVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
 
@@ -22,8 +23,11 @@ public class BookController {
     private ChapterService chapterService;
 
     @GetMapping("/home")
-    public Result<Map<String, List<BookVO>>> getHomeBooks() {
-        return Result.success(bookService.getHomeBooks());
+    public Result<Map<String, List<BookVO>>> getHomeBooks(
+            @RequestParam(required = false, defaultValue = "1") Integer page,
+            @RequestParam(required = false, defaultValue = "20") Integer pageSize,
+            @RequestParam(required = false) String language) {
+        return Result.success(bookService.getHomeBooks(page, pageSize, language));
     }
 
     @GetMapping("/{id}")
@@ -32,17 +36,28 @@ public class BookController {
     }
 
     @GetMapping("/{id}/chapters")
-    public Result<List<ChapterVO>> getBookChapters(@PathVariable Long id) {
-        return Result.success(chapterService.getChaptersByBookId(id));
+    public Result<List<ChapterVO>> getBookChapters(
+            @PathVariable Long id,
+            @RequestParam(required = false, defaultValue = "false") Boolean includeFirstChapter,
+            HttpServletRequest request) {
+        Long userId = (Long) request.getAttribute("userId");
+        return Result.success(chapterService.getChaptersByBookId(id, includeFirstChapter, userId));
     }
 
     @GetMapping("/chapters/{id}")
-    public Result<ChapterVO> getChapterDetails(@PathVariable Long id) {
-        return Result.success(chapterService.getChapterDetails(id));
+    public Result<ChapterVO> getChapterDetails(@PathVariable Long id, HttpServletRequest request) {
+        Long userId = (Long) request.getAttribute("userId");
+        return Result.success(chapterService.getChapterDetails(id, userId));
     }
 
     @GetMapping("/search")
     public Result<List<BookVO>> searchBooks(@RequestParam String keyword) {
         return Result.success(bookService.searchBooks(keyword));
+    }
+
+    @PostMapping("/{id}/like")
+    public Result<Void> likeBook(@PathVariable Long id) {
+        bookService.likeBook(id);
+        return Result.success(null);
     }
 }
