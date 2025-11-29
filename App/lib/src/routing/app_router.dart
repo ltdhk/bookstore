@@ -11,6 +11,8 @@ import 'package:book_store/src/features/settings/presentation/settings_page.dart
 import 'package:book_store/src/features/search/presentation/search_screen.dart';
 import 'package:book_store/src/features/auth/presentation/login_screen.dart';
 import 'package:book_store/src/features/auth/presentation/register_screen.dart';
+import 'package:book_store/src/features/reading_history/presentation/reading_history_screen.dart';
+import 'package:book_store/src/features/transaction_record/presentation/transaction_record_screen.dart';
 
 part 'app_router.g.dart';
 
@@ -30,6 +32,16 @@ GoRouter goRouter(Ref ref) {
         path: '/register',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const RegisterScreen(),
+      ),
+      GoRoute(
+        path: '/reading-history',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const ReadingHistoryScreen(),
+      ),
+      GoRoute(
+        path: '/transaction-record',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const TransactionRecordScreen(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {

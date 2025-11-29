@@ -1,19 +1,22 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+
 import 'package:book_store/src/features/settings/data/theme_provider.dart';
 import 'package:book_store/src/features/reader/providers/chapter_provider.dart';
 import 'package:book_store/src/features/reader/data/models/chapter_vo.dart';
+import 'package:book_store/src/features/reader/data/models/reader_data.dart';
 import 'package:book_store/src/features/reader/data/reading_progress_service.dart';
 import 'package:book_store/src/features/bookshelf/providers/bookshelf_provider.dart';
 import 'package:book_store/src/features/subscription/presentation/subscription_dialog.dart';
-import 'package:book_store/src/features/subscription/providers/subscription_provider.dart';
 import 'package:book_store/src/features/auth/providers/auth_provider.dart';
 import 'package:book_store/src/features/passcode/providers/passcode_provider.dart';
 import 'package:book_store/src/features/passcode/data/passcode_api_service.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'dart:async';
+import 'package:book_store/src/features/reading_history/providers/reading_history_provider.dart';
 
 class ReaderScreen extends ConsumerStatefulWidget {
   final String bookId;
@@ -41,13 +44,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   bool _isLoadingNextChapter = false; // Flag for loading next chapter at bottom
   ChapterVO? _cachedChapter; // Cache current chapter content
   int _cachedChapterIndex = -1; // Cache current chapter index
+  final Set<int> _preloadedChapters = {}; // Track preloaded chapters to avoid duplicate requests
 
   final double _defaultFontSize = 18.0;
 
   // Cache book info for bookshelf operations
   String _bookTitle = '';
   String _bookAuthor = '';
-  String _bookCoverUrl = '';
+  String? _bookCoverUrl;
   String _bookCategory = '';
 
   @override
@@ -242,13 +246,18 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     });
   }
 
-  /// Pre-load next chapter in background
+  /// Pre-load next chapter in background (with deduplication)
   void _preloadNextChapter() {
     final bookId = int.parse(widget.bookId);
     final currentIndex = ref.read(currentChapterIndexProvider);
+    final nextIndex = currentIndex + 1;
+
+    // Skip if already preloaded to avoid duplicate requests
+    if (_preloadedChapters.contains(nextIndex)) return;
+    _preloadedChapters.add(nextIndex);
 
     // Pre-load next chapter content (ignore result)
-    ref.read(chapterContentProvider(bookId, currentIndex + 1).future).ignore();
+    ref.read(chapterContentProvider(bookId, nextIndex).future).ignore();
   }
 
   /// Auto-navigate to next chapter when scrolled to bottom
@@ -336,16 +345,22 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     return 0; // Return first chapter if no accessible chapters found
   }
 
-  /// Pre-load previous and next chapters
+  /// Pre-load previous and next chapters (with deduplication)
   void _preloadAdjacentChapters(int currentIndex) {
     final bookId = int.parse(widget.bookId);
+    final nextIndex = currentIndex + 1;
+    final prevIndex = currentIndex - 1;
 
-    // Pre-load next chapter (ignore result)
-    ref.read(chapterContentProvider(bookId, currentIndex + 1).future).ignore();
+    // Pre-load next chapter (ignore result) - skip if already preloaded
+    if (!_preloadedChapters.contains(nextIndex)) {
+      _preloadedChapters.add(nextIndex);
+      ref.read(chapterContentProvider(bookId, nextIndex).future).ignore();
+    }
 
-    // Pre-load previous chapter (ignore result)
-    if (currentIndex > 0) {
-      ref.read(chapterContentProvider(bookId, currentIndex - 1).future).ignore();
+    // Pre-load previous chapter (ignore result) - skip if already preloaded
+    if (prevIndex >= 0 && !_preloadedChapters.contains(prevIndex)) {
+      _preloadedChapters.add(prevIndex);
+      ref.read(chapterContentProvider(bookId, prevIndex).future).ignore();
     }
   }
 
@@ -365,9 +380,66 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     return readerDataAsync.when(
       loading: () => Scaffold(
         backgroundColor: _backgroundColor,
-        body: Center(
-          child: CircularProgressIndicator(
-            color: readingTextColor,
+        body: SafeArea(
+          child: Column(
+            children: [
+              // Top bar
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+                decoration: BoxDecoration(
+                  color: _backgroundColor,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.arrow_back, color: readingTextColor),
+                      onPressed: () => context.pop(),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Loading...',
+                        style: TextStyle(
+                          color: readingTextColor,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Loading area
+              Expanded(
+                child: Center(
+                  child: CircularProgressIndicator(
+                    color: readingTextColor,
+                  ),
+                ),
+              ),
+              // Bottom toolbar placeholder
+              Container(
+                height: 80,
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                decoration: BoxDecoration(
+                  color: _backgroundColor,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -386,7 +458,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   Widget _buildReaderContent(
     BuildContext context,
-    dynamic readerData,
+    ReaderData readerData,
     bool isDarkTheme,
     bool isReadingBgDark,
     Color readingTextColor,
@@ -396,9 +468,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     final bookId = int.parse(widget.bookId);
 
     // Cache book info for bookshelf operations
-    _bookTitle = book.title ?? 'Unknown';
-    _bookAuthor = book.author ?? 'Unknown';
-    _bookCoverUrl = book.coverUrl ?? '';
+    _bookTitle = book.title;
+    _bookAuthor = book.author;
+    _bookCoverUrl = book.coverUrl;
     _bookCategory = book.category ?? 'General';
 
     // Check if there are no chapters
@@ -406,9 +478,16 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       return _buildEmptyChaptersView(context, book, isDarkTheme, isReadingBgDark, readingTextColor);
     }
 
-    // Load reading progress on first build
+    // Load reading progress and add to reading history on first build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadReadingProgress();
+      // Add to reading history
+      ref.read(readingHistoryProvider.notifier).addOrUpdateHistory(
+            bookId: widget.bookId,
+            title: book.title,
+            author: book.author,
+            coverUrl: book.coverUrl,
+          );
     });
 
     final currentIndex = ref.watch(currentChapterIndexProvider);
@@ -432,12 +511,84 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
             isLoadingNext: true,
           );
         }
-        // First load - show full screen loading
+        // First load - show loading with top and bottom toolbars
         return Scaffold(
           backgroundColor: _backgroundColor,
-          body: Center(
-            child: CircularProgressIndicator(
-              color: readingTextColor,
+          body: SafeArea(
+            child: Column(
+              children: [
+                // Top bar
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+                  decoration: BoxDecoration(
+                    color: _backgroundColor,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.arrow_back, color: readingTextColor),
+                        onPressed: () => context.pop(),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          book.title,
+                          style: TextStyle(
+                            color: readingTextColor,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Loading area
+                Expanded(
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      color: readingTextColor,
+                    ),
+                  ),
+                ),
+                // Bottom toolbar placeholder
+                Container(
+                  height: 80,
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  decoration: BoxDecoration(
+                    color: _backgroundColor,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Loading chapter...',
+                          style: TextStyle(
+                            color: readingTextColor.withValues(alpha: 0.6),
+                            fontSize: 12,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         );

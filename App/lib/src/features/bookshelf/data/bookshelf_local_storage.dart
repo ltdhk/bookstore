@@ -8,7 +8,7 @@ class BookshelfItem {
   final String id;
   final String title;
   final String author;
-  final String coverUrl;
+  final String? coverUrl;
   final String category;
   final DateTime addedAt;
 
@@ -16,10 +16,13 @@ class BookshelfItem {
     required this.id,
     required this.title,
     required this.author,
-    required this.coverUrl,
+    this.coverUrl,
     required this.category,
     required this.addedAt,
   });
+
+  /// Get cover URL with fallback to default cover
+  String get effectiveCoverUrl => coverUrl ?? 'https://via.placeholder.com/300x400.png?text=No+Cover';
 
   Map<String, dynamic> toJson() {
     return {
@@ -37,7 +40,7 @@ class BookshelfItem {
       id: json['id'] as String,
       title: json['title'] as String,
       author: json['author'] as String,
-      coverUrl: json['coverUrl'] as String,
+      coverUrl: json['coverUrl'] as String?,
       category: json['category'] as String,
       addedAt: DateTime.parse(json['addedAt'] as String),
     );

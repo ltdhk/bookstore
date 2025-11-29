@@ -10,7 +10,7 @@ BookVO _$BookVOFromJson(Map<String, dynamic> json) => BookVO(
   id: (json['id'] as num).toInt(),
   title: json['title'] as String,
   author: json['author'] as String,
-  coverUrl: json['coverUrl'] as String,
+  coverUrl: json['coverUrl'] as String?,
   description: json['description'] as String?,
   category: json['category'] as String?,
   status: json['status'] as String?,

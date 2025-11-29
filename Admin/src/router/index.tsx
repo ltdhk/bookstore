@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import Login from '../pages/Login';
 import Dashboard from '../pages/Dashboard';
 import BookManagement from '../pages/Book';
+import BookImport from '../pages/Book/Import';
 import UserManagement from '../pages/User';
 import DistributorManagement from '../pages/Distributor';
 import SystemManagement from '../pages/System';
@@ -9,6 +10,7 @@ import SubscriptionManagement from '../pages/Subscription';
 import ProductManagement from '../pages/Subscription/ProductManagement';
 import DistributorRevenue from '../pages/Subscription/DistributorRevenue';
 import AdvertisementManagement from '../pages/Advertisement';
+import PasscodeManagement from '../pages/Passcode';
 import MainLayout from '../layouts/MainLayout';
 import ProtectedRoute from '../components/ProtectedRoute';
 
@@ -32,6 +34,10 @@ const router = createBrowserRouter([
       {
         path: '/book',
         element: <BookManagement />,
+      },
+      {
+        path: '/book/import',
+        element: <BookImport />,
       },
       {
         path: '/user',
@@ -64,6 +70,10 @@ const router = createBrowserRouter([
       {
         path: '/advertisement',
         element: <AdvertisementManagement />,
+      },
+      {
+        path: '/passcode',
+        element: <PasscodeManagement />,
       },
     ],
   },

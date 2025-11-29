@@ -2,26 +2,33 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'book_vo.g.dart';
 
-@JsonSerializable()
+@JsonSerializable(fieldRename: FieldRename.none)
 class BookVO {
   final int id;
   final String title;
   final String author;
-  final String coverUrl;
+
+  @JsonKey(name: 'coverUrl')
+  final String? coverUrl;
+
   final String? description;
   final String? category;
   final String? status;
   final int? views;
   final int? likes;
   final double? rating;
+
+  @JsonKey(name: 'completionStatus')
   final String? completionStatus;
+
+  @JsonKey(name: 'chapterCount')
   final int? chapterCount;
 
   BookVO({
     required this.id,
     required this.title,
     required this.author,
-    required this.coverUrl,
+    this.coverUrl,
     this.description,
     this.category,
     this.status,
@@ -34,6 +41,9 @@ class BookVO {
 
   factory BookVO.fromJson(Map<String, dynamic> json) => _$BookVOFromJson(json);
   Map<String, dynamic> toJson() => _$BookVOToJson(this);
+
+  /// Get cover URL with fallback to default cover
+  String get effectiveCoverUrl => coverUrl ?? 'https://via.placeholder.com/300x400.png?text=No+Cover';
 
   BookVO copyWith({
     int? id,

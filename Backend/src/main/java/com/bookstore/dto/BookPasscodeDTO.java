@@ -21,4 +21,8 @@ public class BookPasscodeDTO {
     private LocalDateTime validTo;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    // Statistics fields
+    private Long orderCount;
+    private java.math.BigDecimal totalAmount;
 }

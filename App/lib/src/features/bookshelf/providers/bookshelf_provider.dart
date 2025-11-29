@@ -17,7 +17,7 @@ class Bookshelf extends _$Bookshelf {
     required String id,
     required String title,
     required String author,
-    required String coverUrl,
+    String? coverUrl,
     required String category,
   }) async {
     final storage = ref.read(bookshelfLocalStorageProvider).requireValue;

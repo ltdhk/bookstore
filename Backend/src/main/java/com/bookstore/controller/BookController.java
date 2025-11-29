@@ -1,6 +1,7 @@
 package com.bookstore.controller;
 
 import com.bookstore.common.Result;
+import com.bookstore.dto.ReaderDataDTO;
 import com.bookstore.service.BookService;
 import com.bookstore.service.ChapterService;
 import com.bookstore.vo.BookVO;
@@ -59,5 +60,16 @@ public class BookController {
     public Result<Void> likeBook(@PathVariable Long id) {
         bookService.likeBook(id);
         return Result.success(null);
+    }
+
+    /**
+     * Optimized endpoint for reader page - returns all data in a single call
+     * Combines: book details + chapter list + first chapter content + subscription status
+     * Reduces API calls from 2-3 to 1, and DB queries from 5+ to 3
+     */
+    @GetMapping("/{id}/reader-data")
+    public Result<ReaderDataDTO> getReaderData(@PathVariable Long id, HttpServletRequest request) {
+        Long userId = (Long) request.getAttribute("userId");
+        return Result.success(bookService.getReaderData(id, userId));
     }
 }

@@ -3,9 +3,32 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:book_store/src/features/auth/providers/auth_provider.dart';
 import 'package:book_store/l10n/app_localizations.dart';
+import 'package:book_store/src/features/subscription/presentation/subscription_dialog.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
+
+  void _showSubscriptionDialog(BuildContext context, WidgetRef ref) {
+    // Check if user is logged in
+    final authState = ref.read(authProvider);
+
+    authState.whenOrNull(
+      data: (user) {
+        if (user == null) {
+          // User not logged in, show login dialog
+          _showLoginDialog(context);
+        } else {
+          // User logged in, show subscription dialog
+          showDialog(
+            context: context,
+            builder: (context) => const SubscriptionDialog(
+              sourceEntry: 'profile',
+            ),
+          );
+        }
+      },
+    );
+  }
 
   void _showLoginDialog(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -417,7 +440,7 @@ class ProfileScreen extends ConsumerWidget {
                     ),
                   ),
                   ElevatedButton(
-                    onPressed: () {},
+                    onPressed: () => _showSubscriptionDialog(context, ref),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFFFD54F), // Amber
                       foregroundColor: Colors.black,
@@ -441,7 +464,13 @@ class ProfileScreen extends ConsumerWidget {
               ),
               child: Column(
                 children: [
-                  _buildMenuItem(context, Icons.history, 'Reading history', isDark),
+                  _buildMenuItem(
+                    context,
+                    Icons.history,
+                    'Reading history',
+                    isDark,
+                    onTap: () => context.push('/reading-history'),
+                  ),
                   Divider(
                     height: 1,
                     indent: 56,
@@ -452,6 +481,7 @@ class ProfileScreen extends ConsumerWidget {
                     Icons.account_balance_wallet_outlined,
                     'Transaction Record',
                     isDark,
+                    onTap: () => context.push('/transaction-record'),
                   ),
                   Divider(
                     height: 1,

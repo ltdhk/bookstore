@@ -49,7 +49,7 @@ class BookListSection extends ConsumerWidget {
                           ClipRRect(
                             borderRadius: BorderRadius.circular(8.0),
                             child: CachedNetworkImage(
-                              imageUrl: book.coverUrl,
+                              imageUrl: book.effectiveCoverUrl,
                               height: 160,
                               width: 120,
                               fit: BoxFit.cover,

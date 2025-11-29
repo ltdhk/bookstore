@@ -389,14 +389,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           ClipRRect(
                             borderRadius: BorderRadius.circular(6.0),
                             child: CachedNetworkImage(
-                              imageUrl: book.coverUrl,
+                              imageUrl: book.effectiveCoverUrl,
                               width: 80,
                               height: 110,
                               fit: BoxFit.cover,
                               placeholder: (context, url) =>
                                   Container(color: Colors.grey[200]),
                               errorWidget: (context, url, error) =>
-                                  const Icon(Icons.error),
+                                  Container(
+                                    color: Colors.grey[300],
+                                    child: const Icon(Icons.book, size: 24, color: Colors.grey),
+                                  ),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -488,7 +491,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8.0),
                   child: CachedNetworkImage(
-                    imageUrl: book.coverUrl,
+                    imageUrl: book.effectiveCoverUrl,
                     fit: BoxFit.cover,
                     width: double.infinity,
                     height: double.infinity,
@@ -688,7 +691,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   ClipRRect(
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                     child: CachedNetworkImage(
-                      imageUrl: book.coverUrl,
+                      imageUrl: book.effectiveCoverUrl,
                       width: double.infinity,
                       height: 280,
                       fit: BoxFit.cover,

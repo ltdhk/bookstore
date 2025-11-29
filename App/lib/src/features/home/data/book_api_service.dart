@@ -3,6 +3,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:book_store/src/services/networking/dio_provider.dart';
 import 'package:book_store/src/features/home/data/models/book_vo.dart';
 import 'package:book_store/src/features/reader/data/models/chapter_vo.dart';
+import 'package:book_store/src/features/reader/data/models/reader_data.dart';
 
 part 'book_api_service.g.dart';
 
@@ -83,5 +84,13 @@ class BookApiService {
   Future<ChapterVO> getChapterDetails(int chapterId) async {
     final response = await _dio.get('/api/v1/books/chapters/$chapterId');
     return ChapterVO.fromJson(response.data['data'] as Map<String, dynamic>);
+  }
+
+  /// Get all reader data in a single call - optimized for reader page
+  /// Combines: book details + chapter list + first chapter content + subscription status
+  /// This reduces API calls from 2-3 to just 1
+  Future<ReaderData> getReaderData(int bookId) async {
+    final response = await _dio.get('/api/v1/books/$bookId/reader-data');
+    return ReaderData.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 }

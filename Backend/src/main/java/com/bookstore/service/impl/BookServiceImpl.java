@@ -4,16 +4,20 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.bookstore.dto.ReaderDataDTO;
 import com.bookstore.entity.Book;
 import com.bookstore.entity.Chapter;
 import com.bookstore.repository.BookMapper;
 import com.bookstore.repository.ChapterMapper;
 import com.bookstore.service.BookService;
+import com.bookstore.service.SubscriptionService;
 import com.bookstore.vo.BookVO;
+import com.bookstore.vo.ChapterVO;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,6 +28,9 @@ public class BookServiceImpl extends ServiceImpl<BookMapper, Book> implements Bo
 
     @Autowired
     private ChapterMapper chapterMapper;
+
+    @Autowired
+    private SubscriptionService subscriptionService;
 
     @Override
     public Map<String, List<BookVO>> getHomeBooks(Integer page, Integer pageSize, String language) {
@@ -83,32 +90,24 @@ public class BookServiceImpl extends ServiceImpl<BookMapper, Book> implements Bo
 
     @Override
     public void likeBook(Long id) {
-        Book book = getById(id);
-        if (book == null) {
-            throw new RuntimeException("Book not found");
-        }
-        // Increment likes count
-        book.setLikes((book.getLikes() == null ? 0 : book.getLikes()) + 1);
-        updateById(book);
+        // Use atomic SQL update to avoid race condition
+        baseMapper.incrementLikes(id);
     }
 
     @Override
     public void incrementViews(Long id) {
-        Book book = getById(id);
-        if (book == null) {
-            throw new RuntimeException("Book not found");
-        }
-        // Increment views count
-        book.setViews((book.getViews() == null ? 0 : book.getViews()) + 1);
-        updateById(book);
+        // Use atomic SQL update to avoid race condition
+        baseMapper.incrementViews(id);
     }
 
     @Override
     public List<BookVO> searchBooks(String keyword) {
+        // Add limit to prevent returning too many results
         List<Book> books = list(new LambdaQueryWrapper<Book>()
                 .like(Book::getTitle, keyword)
                 .or()
-                .like(Book::getAuthor, keyword));
+                .like(Book::getAuthor, keyword)
+                .last("LIMIT 50"));
         return convertToVOList(books);
     }
 
@@ -190,5 +189,90 @@ public class BookServiceImpl extends ServiceImpl<BookMapper, Book> implements Bo
         vo.setChapterCount(chapterCount.intValue());
 
         return vo;
+    }
+
+    /**
+     * Optimized method to get all reader data in a single call
+     * Reduces database queries from 5+ to just 3:
+     * 1. Book + chapter count (single query with subquery)
+     * 2. All chapters for this book
+     * 3. User subscription check (only if userId provided)
+     *
+     * Plus one UPDATE for incrementing views
+     */
+    @Override
+    public ReaderDataDTO getReaderData(Long bookId, Long userId) {
+        ReaderDataDTO result = new ReaderDataDTO();
+
+        // Query 1: Get book with chapter count in single query
+        Map<String, Object> bookData = baseMapper.selectBookWithChapterCount(bookId);
+        if (bookData == null) {
+            throw new RuntimeException("Book not found");
+        }
+
+        // Convert map to BookVO
+        BookVO bookVO = new BookVO();
+        bookVO.setId(((Number) bookData.get("id")).longValue());
+        bookVO.setTitle((String) bookData.get("title"));
+        bookVO.setAuthor((String) bookData.get("author"));
+        bookVO.setCoverUrl((String) bookData.get("cover_url"));
+        bookVO.setDescription((String) bookData.get("description"));
+        bookVO.setCategory((String) bookData.get("category"));
+        bookVO.setStatus((String) bookData.get("status"));
+        bookVO.setCompletionStatus((String) bookData.get("completion_status"));
+        if (bookData.get("views") != null) {
+            bookVO.setViews(((Number) bookData.get("views")).longValue());
+        }
+        if (bookData.get("likes") != null) {
+            bookVO.setLikes(((Number) bookData.get("likes")).longValue());
+        }
+        if (bookData.get("rating") != null) {
+            bookVO.setRating(((Number) bookData.get("rating")).doubleValue());
+        }
+        if (bookData.get("chapter_count") != null) {
+            bookVO.setChapterCount(((Number) bookData.get("chapter_count")).intValue());
+        }
+        result.setBook(bookVO);
+
+        // Update: Increment views (atomic operation, doesn't fetch data)
+        baseMapper.incrementViews(bookId);
+
+        // Query 2: Check subscription status (only once for all chapters)
+        boolean hasValidSubscription = userId != null && subscriptionService.isSubscriptionValid(userId);
+        result.setHasValidSubscription(hasValidSubscription);
+
+        // Query 3: Get all chapters for this book
+        List<Chapter> chapters = chapterMapper.selectList(
+                new LambdaQueryWrapper<Chapter>()
+                        .eq(Chapter::getBookId, bookId)
+                        .orderByAsc(Chapter::getOrderNum)
+        );
+
+        // Convert chapters to VOs with access control
+        List<ChapterVO> chapterVOs = new ArrayList<>();
+        boolean isFirst = true;
+        for (Chapter chapter : chapters) {
+            ChapterVO vo = new ChapterVO();
+            vo.setId(chapter.getId());
+            vo.setBookId(chapter.getBookId());
+            vo.setTitle(chapter.getTitle());
+            vo.setOrderNum(chapter.getOrderNum());
+            vo.setIsFree(chapter.getIsFree());
+
+            // Set access based on free status or subscription
+            boolean canAccess = Boolean.TRUE.equals(chapter.getIsFree()) || hasValidSubscription;
+            vo.setCanAccess(canAccess);
+
+            // Include content only for the first chapter to reduce payload
+            if (isFirst && canAccess) {
+                vo.setContent(chapter.getContent());
+                isFirst = false;
+            }
+
+            chapterVOs.add(vo);
+        }
+        result.setChapters(chapterVOs);
+
+        return result;
     }
 }

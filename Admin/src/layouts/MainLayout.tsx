@@ -16,6 +16,8 @@ import {
   TagsOutlined,
   DollarOutlined,
   PictureOutlined,
+  KeyOutlined,
+  UploadOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -55,6 +57,18 @@ const MainLayout: React.FC = () => {
       key: '/book',
       icon: <BookOutlined />,
       label: t('menu.bookManagement'),
+      children: [
+        {
+          key: '/book',
+          icon: <BookOutlined />,
+          label: '书籍列表',
+        },
+        {
+          key: '/book/import',
+          icon: <UploadOutlined />,
+          label: '批量导入',
+        },
+      ],
     },
     {
       key: '/user',
@@ -92,6 +106,11 @@ const MainLayout: React.FC = () => {
       key: '/advertisement',
       icon: <PictureOutlined />,
       label: '广告管理',
+    },
+    {
+      key: '/passcode',
+      icon: <KeyOutlined />,
+      label: '口令管理',
     },
     {
       key: '/system',
@@ -141,7 +160,7 @@ const MainLayout: React.FC = () => {
     <Layout style={{ minHeight: '100vh' }}>
       <Sider trigger={null} collapsible collapsed={collapsed} theme="light">
         <div className="logo" style={{ height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 'bold', color: '#1890ff' }}>
-          {collapsed ? 'NB' : 'Novel Backend'}
+          {collapsed ? 'NB' : 'Novel Next'}
         </div>
         <Menu
           theme="light"

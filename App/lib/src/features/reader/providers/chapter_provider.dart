@@ -1,7 +1,10 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:book_store/src/features/home/data/book_api_service.dart';
-import 'package:book_store/src/features/home/data/models/book_vo.dart';
 import 'package:book_store/src/features/reader/data/models/chapter_vo.dart';
+import 'package:book_store/src/features/reader/data/models/reader_data.dart';
+
+// Re-export ReaderData for compatibility
+export 'package:book_store/src/features/reader/data/models/reader_data.dart';
 
 part 'chapter_provider.g.dart';
 
@@ -16,36 +19,19 @@ class CurrentChapterIndex extends _$CurrentChapterIndex {
   }
 }
 
-/// Combined data for reader screen (book info + chapter list without content)
-class ReaderData {
-  final BookVO book;
-  final List<ChapterVO> chapters;
-
-  ReaderData({
-    required this.book,
-    required this.chapters,
-  });
-}
-
-/// Provider that fetches book metadata and chapter list
+/// Provider that fetches all reader data in a single optimized API call
+/// This replaces the previous approach of making 2 separate API calls
+/// (getBookDetails + getBookChapters) with just 1 call (getReaderData)
 @riverpod
 Future<ReaderData> readerData(Ref ref, int bookId) async {
   final bookService = ref.watch(bookApiServiceProvider);
 
-  // Fetch book details and chapter list in parallel
-  // Request to include first chapter content to reduce API calls
-  final results = await Future.wait([
-    bookService.getBookDetails(bookId),
-    bookService.getBookChapters(bookId, includeFirstChapter: true),
-  ]);
-
-  final book = results[0] as BookVO;
-  final chapters = results[1] as List<ChapterVO>;
-
-  return ReaderData(
-    book: book,
-    chapters: chapters,
-  );
+  // Single optimized API call that returns:
+  // - Book details with chapter count
+  // - All chapters with first chapter content
+  // - Subscription status check
+  // This reduces DB queries from 5+ to just 3
+  return await bookService.getReaderData(bookId);
 }
 
 /// Provider that fetches chapter content by chapter index

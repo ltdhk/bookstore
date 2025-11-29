@@ -100,7 +100,7 @@ class BookDetailScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      description * 5, // Repeat to make it longer
+                      description,
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ],

@@ -68,12 +68,16 @@ abstract class _$CurrentChapterIndex extends $Notifier<int> {
   }
 }
 
-/// Provider that fetches book metadata and chapter list
+/// Provider that fetches all reader data in a single optimized API call
+/// This replaces the previous approach of making 2 separate API calls
+/// (getBookDetails + getBookChapters) with just 1 call (getReaderData)
 
 @ProviderFor(readerData)
 const readerDataProvider = ReaderDataFamily._();
 
-/// Provider that fetches book metadata and chapter list
+/// Provider that fetches all reader data in a single optimized API call
+/// This replaces the previous approach of making 2 separate API calls
+/// (getBookDetails + getBookChapters) with just 1 call (getReaderData)
 
 final class ReaderDataProvider
     extends
@@ -83,7 +87,9 @@ final class ReaderDataProvider
           FutureOr<ReaderData>
         >
     with $FutureModifier<ReaderData>, $FutureProvider<ReaderData> {
-  /// Provider that fetches book metadata and chapter list
+  /// Provider that fetches all reader data in a single optimized API call
+  /// This replaces the previous approach of making 2 separate API calls
+  /// (getBookDetails + getBookChapters) with just 1 call (getReaderData)
   const ReaderDataProvider._({
     required ReaderDataFamily super.from,
     required int super.argument,
@@ -127,9 +133,11 @@ final class ReaderDataProvider
   }
 }
 
-String _$readerDataHash() => r'392cd9c810219977cc421732ad5a0c359f2701b0';
+String _$readerDataHash() => r'551ba0899d3c07f51fb961a1cd30e342b6c444ac';
 
-/// Provider that fetches book metadata and chapter list
+/// Provider that fetches all reader data in a single optimized API call
+/// This replaces the previous approach of making 2 separate API calls
+/// (getBookDetails + getBookChapters) with just 1 call (getReaderData)
 
 final class ReaderDataFamily extends $Family
     with $FunctionalFamilyOverride<FutureOr<ReaderData>, int> {
@@ -142,7 +150,9 @@ final class ReaderDataFamily extends $Family
         isAutoDispose: true,
       );
 
-  /// Provider that fetches book metadata and chapter list
+  /// Provider that fetches all reader data in a single optimized API call
+  /// This replaces the previous approach of making 2 separate API calls
+  /// (getBookDetails + getBookChapters) with just 1 call (getReaderData)
 
   ReaderDataProvider call(int bookId) =>
       ReaderDataProvider._(argument: bookId, from: this);

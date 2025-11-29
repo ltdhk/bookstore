@@ -258,12 +258,15 @@ class _HomeTabContentState extends ConsumerState<HomeTabContent> with AutomaticK
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(6.0),
                               child: CachedNetworkImage(
-                                imageUrl: book.coverUrl,
+                                imageUrl: book.effectiveCoverUrl,
                                 fit: BoxFit.cover,
                                 width: double.infinity,
                                 height: double.infinity,
                                 placeholder: (context, url) => Container(color: Colors.grey[200]),
-                                errorWidget: (context, url, error) => const Icon(Icons.error),
+                                errorWidget: (context, url, error) => Container(
+                                  color: Colors.grey[300],
+                                  child: const Icon(Icons.book, size: 48, color: Colors.grey),
+                                ),
                               ),
                             ),
                           ),

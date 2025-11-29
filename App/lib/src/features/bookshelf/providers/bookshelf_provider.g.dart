@@ -36,7 +36,7 @@ final class BookshelfProvider
   Bookshelf create() => Bookshelf();
 }
 
-String _$bookshelfHash() => r'f0b628361c7e74aec5714f3e5a481a21fb7675a4';
+String _$bookshelfHash() => r'bfcb76ab456cb4a043d40497bc1ffc0fb2307c32';
 
 /// Provider for bookshelf items
 

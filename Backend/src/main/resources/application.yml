@@ -16,6 +16,12 @@ spring:
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: GMT+8
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 100MB
+      max-request-size: 100MB
+      file-size-threshold: 2MB
 
 mybatis-plus:
   configuration:
@@ -34,7 +40,14 @@ jwt:
 
 aws:
   s3:
-    access-key: YOUR_AWS_ACCESS_KEY # 请替换为你的AWS Access Key
-    secret-key: YOUR_AWS_SECRET_KEY # 请替换为你的AWS Secret Key
+    access-key: ${AWS_ACCESS_KEY:your-access-key} # 请替换为你的AWS Access Key
+    secret-key: ${AWS_SECRET_KEY:your-secret-key} # 请替换为你的AWS Secret Key
     region: ap-southeast-1 # AWS区域，例如: us-east-1, ap-southeast-1
-    bucket-name: your-bucket-name # 你的S3桶名称
+    bucket-name: book-app-cover # 你的S3桶名称
+
+# Book import configuration
+book-import:
+  max-books-per-batch: 50
+  max-chapters-per-book: 500
+  max-cover-size: 5242880 # 5MB in bytes
+  supported-image-formats: jpg,jpeg,png,gif,webp

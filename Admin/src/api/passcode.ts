@@ -16,6 +16,8 @@ export interface BookPasscode {
   validTo?: string;
   createdAt?: string;
   updatedAt?: string;
+  orderCount?: number;
+  totalAmount?: number;
 }
 
 export interface PasscodeStats {
@@ -40,6 +42,16 @@ export interface PasscodeUsageLog {
   deviceInfo?: string;
   createdAt: string;
 }
+
+// Get all passcodes with pagination and search
+export const getAllPasscodes = (params: {
+  page?: number;
+  size?: number;
+  passcode?: string;
+  distributorId?: number;
+}) => {
+  return request.get('/admin/passcodes', { params });
+};
 
 // Get passcodes for a book
 export const getBookPasscodes = (bookId: number) => {

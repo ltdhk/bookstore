@@ -283,7 +283,7 @@ class _BookshelfScreenState extends ConsumerState<BookshelfScreen> {
     return GestureDetector(
       onTap: _isEditMode
           ? () => _toggleBookSelection(book.id)
-          : () => context.push('/book/${book.id}'),
+          : () => context.push('/read/${book.id}'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -293,7 +293,7 @@ class _BookshelfScreenState extends ConsumerState<BookshelfScreen> {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12.0),
                   child: CachedNetworkImage(
-                    imageUrl: book.coverUrl,
+                    imageUrl: book.effectiveCoverUrl,
                     fit: BoxFit.cover,
                     width: double.infinity,
                     height: double.infinity,

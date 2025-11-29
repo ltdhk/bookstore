@@ -7,16 +7,19 @@ class Book {
   final String id;
   final String title;
   final String author;
-  final String coverUrl;
+  final String? coverUrl;
   final String category;
 
   Book({
     required this.id,
     required this.title,
     required this.author,
-    required this.coverUrl,
+    this.coverUrl,
     required this.category,
   });
+
+  /// Get cover URL with fallback to default cover
+  String get effectiveCoverUrl => coverUrl ?? 'https://via.placeholder.com/300x400.png?text=No+Cover';
 }
 
 @riverpod

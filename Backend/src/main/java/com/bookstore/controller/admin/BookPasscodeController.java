@@ -7,6 +7,7 @@ import com.bookstore.common.Result;
 import com.bookstore.dto.BookPasscodeDTO;
 import com.bookstore.dto.PasscodeStatsDTO;
 import com.bookstore.entity.*;
+import com.bookstore.repository.BookPasscodeRepository;
 import com.bookstore.repository.OrderRepository;
 import com.bookstore.repository.PasscodeUsageLogRepository;
 import com.bookstore.service.BookPasscodeService;
@@ -30,10 +31,42 @@ import java.util.stream.Collectors;
 public class BookPasscodeController {
 
     private final BookPasscodeService passcodeService;
+    private final BookPasscodeRepository passcodeRepository;
     private final BookService bookService;
     private final DistributorService distributorService;
     private final PasscodeUsageLogRepository usageLogRepository;
     private final OrderRepository orderRepository;
+
+    /**
+     * Get all passcodes with pagination and search (optimized with JOIN query)
+     */
+    @GetMapping("/passcodes")
+    public Result<IPage<BookPasscodeDTO>> getAllPasscodes(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(required = false) String passcode,
+            @RequestParam(required = false) Long distributorId) {
+
+        // Calculate offset for pagination
+        int offset = (page - 1) * size;
+
+        // Use optimized JOIN query - one SQL query instead of N+1
+        List<BookPasscodeDTO> dtoList = passcodeRepository.selectPasscodesWithDetails(
+                passcode,
+                distributorId,
+                size,
+                offset
+        );
+
+        // Get total count
+        long total = passcodeRepository.countPasscodes(passcode, distributorId);
+
+        // Create result page
+        IPage<BookPasscodeDTO> resultPage = new Page<>(page, size, total);
+        resultPage.setRecords(dtoList);
+
+        return Result.success(resultPage);
+    }
 
     /**
      * Get passcodes for a specific book
