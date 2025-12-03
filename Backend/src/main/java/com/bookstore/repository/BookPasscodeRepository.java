@@ -65,4 +65,37 @@ public interface BookPasscodeRepository extends BaseMapper<BookPasscode> {
     long countPasscodes(
             @Param("passcode") String passcode,
             @Param("distributorId") Long distributorId);
+
+    /**
+     * 获取口令排行榜（按订单数排序）
+     */
+    @Select("<script>" +
+            "SELECT " +
+            "  p.id AS passcodeId, p.passcode, " +
+            "  d.name AS distributorName, " +
+            "  b.title AS bookTitle, " +
+            "  COUNT(o.id) AS orderCount, " +
+            "  COALESCE(SUM(o.amount), 0) AS totalRevenue " +
+            "FROM book_passcodes p " +
+            "LEFT JOIN books b ON p.book_id = b.id " +
+            "LEFT JOIN distributors d ON p.distributor_id = d.id " +
+            "LEFT JOIN orders o ON p.id = o.source_passcode_id AND o.status = 'Paid' " +
+            "<where>" +
+            "  p.deleted = 0 " +
+            "  <if test='startDate != null and startDate != \"\"'>" +
+            "    AND o.create_time &gt;= #{startDate} " +
+            "  </if>" +
+            "  <if test='endDate != null and endDate != \"\"'>" +
+            "    AND o.create_time &lt;= #{endDate} " +
+            "  </if>" +
+            "</where>" +
+            "GROUP BY p.id, p.passcode, d.name, b.title " +
+            "HAVING orderCount &gt; 0 " +
+            "ORDER BY orderCount DESC " +
+            "LIMIT #{limit}" +
+            "</script>")
+    List<com.bookstore.dto.PasscodeRankingDTO> selectPasscodeRanking(
+            @Param("startDate") String startDate,
+            @Param("endDate") String endDate,
+            @Param("limit") int limit);
 }

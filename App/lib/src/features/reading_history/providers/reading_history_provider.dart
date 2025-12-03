@@ -1,5 +1,5 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:book_store/src/features/reading_history/data/reading_history_local_storage.dart';
+import 'package:novelpop/src/features/reading_history/data/reading_history_local_storage.dart';
 
 part 'reading_history_provider.g.dart';
 

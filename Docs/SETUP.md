@@ -432,3 +432,8 @@ flutter pub get
 ## 许可证
 
 [MIT License](../LICENSE)
+
+
+ssh -i C:\path\to\private_key.pem user@192.168.1.1
+
+ssh -i C:\Users\ltdhk\Documents\DevTools\novelpop_key.pem ec2-user@ec2-18-118-241-217.us-east-2.compute.amazonaws.com

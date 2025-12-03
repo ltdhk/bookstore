@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:book_store/src/services/networking/dio_provider.dart';
-import 'package:book_store/src/features/passcode/data/models/passcode_search_result.dart';
+import 'package:novelpop/src/services/networking/dio_provider.dart';
+import 'package:novelpop/src/features/passcode/data/models/passcode_search_result.dart';
 
 part 'passcode_api_service.g.dart';
 

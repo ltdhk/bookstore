@@ -68,6 +68,11 @@ const MainLayout: React.FC = () => {
           icon: <UploadOutlined />,
           label: '批量导入',
         },
+        {
+          key: '/book/cover-management',
+          icon: <PictureOutlined />,
+          label: '封面管理',
+        },
       ],
     },
     {

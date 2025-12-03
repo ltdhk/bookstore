@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:book_store/src/features/auth/providers/auth_provider.dart';
-import 'package:book_store/src/utils/crypto_utils.dart';
+import 'package:novelpop/src/features/auth/providers/auth_provider.dart';
+import 'package:novelpop/src/utils/crypto_utils.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -154,20 +154,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     height: 80,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFF6B9D), Color(0xFFFF3D7F)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
                     ),
-                    child: const Center(
-                      child: Text(
-                        'M',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 48,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        fit: BoxFit.cover,
                       ),
                     ),
                   ),

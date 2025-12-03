@@ -1,5 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
-import 'package:book_store/src/features/home/data/models/book_vo.dart';
+import 'package:novelpop/src/features/home/data/models/book_vo.dart';
 import 'passcode_context.dart';
 
 part 'passcode_search_result.g.dart';

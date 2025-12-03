@@ -1,5 +1,5 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:book_store/src/features/bookshelf/data/bookshelf_local_storage.dart';
+import 'package:novelpop/src/features/bookshelf/data/bookshelf_local_storage.dart';
 
 part 'bookshelf_provider.g.dart';
 

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
-import 'package:book_store/src/features/home/data/mock_home_repository.dart';
+import 'package:novelpop/src/features/home/data/mock_home_repository.dart';
 
 class BookListSection extends ConsumerWidget {
   final String title;

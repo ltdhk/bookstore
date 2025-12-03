@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:book_store/src/features/reading_history/providers/reading_history_provider.dart';
+import 'package:novelpop/src/features/reading_history/providers/reading_history_provider.dart';
 import 'package:intl/intl.dart';
 
 class ReadingHistoryScreen extends ConsumerWidget {

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:book_store/src/features/transaction_record/providers/transaction_provider.dart';
-import 'package:book_store/src/features/transaction_record/data/models/order.dart';
-import 'package:book_store/src/features/auth/providers/auth_provider.dart';
+import 'package:novelpop/src/features/transaction_record/providers/transaction_provider.dart';
+import 'package:novelpop/src/features/transaction_record/data/models/order.dart';
+import 'package:novelpop/src/features/auth/providers/auth_provider.dart';
 import 'package:intl/intl.dart';
 
 class TransactionRecordScreen extends ConsumerStatefulWidget {

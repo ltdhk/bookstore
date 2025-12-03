@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:book_store/src/common_widgets/scaffold_with_navbar.dart';
-import 'package:book_store/src/features/book_details/presentation/book_detail_screen.dart';
-import 'package:book_store/src/features/reader/presentation/reader_screen.dart';
-import 'package:book_store/src/features/home/presentation/home_screen.dart';
-import 'package:book_store/src/features/bookshelf/presentation/bookshelf_screen.dart';
-import 'package:book_store/src/features/profile/presentation/profile_screen.dart';
-import 'package:book_store/src/features/settings/presentation/settings_page.dart';
-import 'package:book_store/src/features/search/presentation/search_screen.dart';
-import 'package:book_store/src/features/auth/presentation/login_screen.dart';
-import 'package:book_store/src/features/auth/presentation/register_screen.dart';
-import 'package:book_store/src/features/reading_history/presentation/reading_history_screen.dart';
-import 'package:book_store/src/features/transaction_record/presentation/transaction_record_screen.dart';
+import 'package:novelpop/src/common_widgets/scaffold_with_navbar.dart';
+import 'package:novelpop/src/features/book_details/presentation/book_detail_screen.dart';
+import 'package:novelpop/src/features/reader/presentation/reader_screen.dart';
+import 'package:novelpop/src/features/home/presentation/home_screen.dart';
+import 'package:novelpop/src/features/bookshelf/presentation/bookshelf_screen.dart';
+import 'package:novelpop/src/features/profile/presentation/profile_screen.dart';
+import 'package:novelpop/src/features/settings/presentation/settings_page.dart';
+import 'package:novelpop/src/features/search/presentation/search_screen.dart';
+import 'package:novelpop/src/features/auth/presentation/login_screen.dart';
+import 'package:novelpop/src/features/auth/presentation/register_screen.dart';
+import 'package:novelpop/src/features/reading_history/presentation/reading_history_screen.dart';
+import 'package:novelpop/src/features/transaction_record/presentation/transaction_record_screen.dart';
 
 part 'app_router.g.dart';
 

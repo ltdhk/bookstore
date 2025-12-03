@@ -6,17 +6,17 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
-import 'package:book_store/src/features/settings/data/theme_provider.dart';
-import 'package:book_store/src/features/reader/providers/chapter_provider.dart';
-import 'package:book_store/src/features/reader/data/models/chapter_vo.dart';
-import 'package:book_store/src/features/reader/data/models/reader_data.dart';
-import 'package:book_store/src/features/reader/data/reading_progress_service.dart';
-import 'package:book_store/src/features/bookshelf/providers/bookshelf_provider.dart';
-import 'package:book_store/src/features/subscription/presentation/subscription_dialog.dart';
-import 'package:book_store/src/features/auth/providers/auth_provider.dart';
-import 'package:book_store/src/features/passcode/providers/passcode_provider.dart';
-import 'package:book_store/src/features/passcode/data/passcode_api_service.dart';
-import 'package:book_store/src/features/reading_history/providers/reading_history_provider.dart';
+import 'package:novelpop/src/features/settings/data/theme_provider.dart';
+import 'package:novelpop/src/features/reader/providers/chapter_provider.dart';
+import 'package:novelpop/src/features/reader/data/models/chapter_vo.dart';
+import 'package:novelpop/src/features/reader/data/models/reader_data.dart';
+import 'package:novelpop/src/features/reader/data/reading_progress_service.dart';
+import 'package:novelpop/src/features/bookshelf/providers/bookshelf_provider.dart';
+import 'package:novelpop/src/features/subscription/presentation/subscription_dialog.dart';
+import 'package:novelpop/src/features/auth/providers/auth_provider.dart';
+import 'package:novelpop/src/features/passcode/providers/passcode_provider.dart';
+import 'package:novelpop/src/features/passcode/data/passcode_api_service.dart';
+import 'package:novelpop/src/features/reading_history/providers/reading_history_provider.dart';
 
 class ReaderScreen extends ConsumerStatefulWidget {
   final String bookId;

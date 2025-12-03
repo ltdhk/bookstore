@@ -3,6 +3,7 @@ import Login from '../pages/Login';
 import Dashboard from '../pages/Dashboard';
 import BookManagement from '../pages/Book';
 import BookImport from '../pages/Book/Import';
+import CoverManagement from '../pages/Book/CoverManagement';
 import UserManagement from '../pages/User';
 import DistributorManagement from '../pages/Distributor';
 import SystemManagement from '../pages/System';
@@ -38,6 +39,10 @@ const router = createBrowserRouter([
       {
         path: '/book/import',
         element: <BookImport />,
+      },
+      {
+        path: '/book/cover-management',
+        element: <CoverManagement />,
       },
       {
         path: '/user',

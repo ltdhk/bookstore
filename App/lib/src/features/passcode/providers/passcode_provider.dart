@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:book_store/src/features/passcode/data/models/passcode_context.dart';
-import 'package:book_store/src/features/passcode/data/passcode_api_service.dart';
+import 'package:novelpop/src/features/passcode/data/models/passcode_context.dart';
+import 'package:novelpop/src/features/passcode/data/passcode_api_service.dart';
 
 part 'passcode_provider.g.dart';
 

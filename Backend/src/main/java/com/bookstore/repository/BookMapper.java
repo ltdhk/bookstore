@@ -63,4 +63,14 @@ public interface BookMapper extends BaseMapper<Book> {
             "(SELECT COUNT(*) FROM chapters c WHERE c.book_id = b.id) as chapter_count " +
             "FROM books b WHERE b.id = #{id} AND b.deleted = 0")
     Map<String, Object> selectBookWithChapterCount(@Param("id") Long id);
+
+    /**
+     * 获取热门书籍 Top N（按浏览量排序）
+     */
+    @Select("SELECT id AS bookId, title, author, views, likes " +
+            "FROM books " +
+            "WHERE status = 'published' AND deleted = 0 " +
+            "ORDER BY views DESC " +
+            "LIMIT #{limit}")
+    List<com.bookstore.dto.TopBookDTO> selectTopBooksByViews(@Param("limit") int limit);
 }

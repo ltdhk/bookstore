@@ -1,9 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:book_store/src/services/networking/dio_provider.dart';
-import 'package:book_store/src/features/subscription/data/models/subscription_product.dart';
-import 'package:book_store/src/features/subscription/data/models/subscription_status.dart';
-import 'package:book_store/src/features/subscription/data/models/subscription_create_request.dart';
+import 'package:novelpop/src/services/networking/dio_provider.dart';
+import 'package:novelpop/src/features/subscription/data/models/subscription_product.dart';
+import 'package:novelpop/src/features/subscription/data/models/subscription_status.dart';
+import 'package:novelpop/src/features/subscription/data/models/subscription_create_request.dart';
 
 part 'subscription_api_service.g.dart';
 
@@ -79,5 +79,34 @@ class SubscriptionApiService {
   Future<bool> isSubscriptionValid() async {
     final response = await _dio.get('/api/subscription/valid');
     return response.data['data'] as bool;
+  }
+
+  /// Verify purchase receipt with backend
+  /// Requires JWT token authentication
+  Future<Map<String, dynamic>> verifyPurchase({
+    required String platform,
+    required String productId,
+    String? receiptData,
+    String? purchaseToken,
+    int? distributorId,
+    int? sourcePasscodeId,
+    int? sourceBookId,
+    String? sourceEntry,
+  }) async {
+    final response = await _dio.post(
+      '/api/subscription/verify',
+      data: {
+        'platform': platform,
+        'productId': productId,
+        if (receiptData != null) 'receiptData': receiptData,
+        if (purchaseToken != null) 'purchaseToken': purchaseToken,
+        if (distributorId != null) 'distributorId': distributorId,
+        if (sourcePasscodeId != null) 'sourcePasscodeId': sourcePasscodeId,
+        if (sourceBookId != null) 'sourceBookId': sourceBookId,
+        if (sourceEntry != null) 'sourceEntry': sourceEntry,
+      },
+    );
+
+    return response.data['data'] as Map<String, dynamic>;
   }
 }

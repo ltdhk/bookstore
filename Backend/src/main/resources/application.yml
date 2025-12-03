@@ -10,9 +10,9 @@ spring:
     name: bookstore-backend
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://bookdb.c9c0k204iijc.ap-southeast-1.rds.amazonaws.com:3306/bookdb?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
-    username: admin
-    password: Ltd5030229 # PLEASE CHANGE THIS
+    url: jdbc:mysql://18.118.241.217:3307/novelpop_db?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
+    username: root
+    password: Ltd5030229! # PLEASE CHANGE THIS
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: GMT+8
@@ -40,10 +40,28 @@ jwt:
 
 aws:
   s3:
-    access-key: ${AWS_ACCESS_KEY:your-access-key} # 请替换为你的AWS Access Key
-    secret-key: ${AWS_SECRET_KEY:your-secret-key} # 请替换为你的AWS Secret Key
-    region: ap-southeast-1 # AWS区域，例如: us-east-1, ap-southeast-1
-    bucket-name: book-app-cover # 你的S3桶名称
+    access-key: ${AWS_ACCESS_KEY} # AWS Access Key (从环境变量获取)
+    secret-key: ${AWS_SECRET_KEY} # AWS Secret Key (从环境变量获取)
+    region: us-east-2 # AWS区域，例如: us-east-1, ap-southeast-1
+    bucket-name: novel-pop # 你的S3桶名称
+
+# Apple Sign In configuration
+apple:
+  signin:
+    team-id: ${APPLE_TEAM_ID:your-team-id}
+    key-id: ${APPLE_KEY_ID:your-key-id}
+    client-id: ${APPLE_CLIENT_ID:com.bookstore.app}
+
+# Google Sign In configuration
+# 将下面的占位符替换为你从 Google Cloud Console 获取的实际 Client ID
+google:
+  signin:
+    # Web Client ID - 从 Google Cloud Console 获取
+    web-client-id: ${GOOGLE_WEB_CLIENT_ID:865872944830-hduu1vo9mjcinidf5oji7gucfnoq23ja.apps.googleusercontent.com}
+    # Android Client ID - 从 Google Cloud Console 获取
+    android-client-id: ${GOOGLE_ANDROID_CLIENT_ID:865872944830-7jd8dgvveoiub2hprs3bkbjg30aqe6j2.apps.googleusercontent.com}
+    # iOS Client ID - 从 Google Cloud Console 获取
+    ios-client-id: ${GOOGLE_IOS_CLIENT_ID:865872944830-btf095tp1p1rubbttcotnbuud7pv6pfp.apps.googleusercontent.com}
 
 # Book import configuration
 book-import:
@@ -51,3 +69,29 @@ book-import:
   max-chapters-per-book: 500
   max-cover-size: 5242880 # 5MB in bytes
   supported-image-formats: jpg,jpeg,png,gif,webp
+
+# In-App Purchase configuration
+iap:
+  apple:
+    production-url: https://buy.itunes.apple.com/verifyReceipt
+    sandbox-url: https://sandbox.itunes.apple.com/verifyReceipt
+    shared-secret: ${APPLE_SHARED_SECRET:your-apple-shared-secret}
+    bundle-id: com.novel.novelpop
+  google:
+    package-name: com.novel.novelpop
+    service-account-file: ${GOOGLE_SERVICE_ACCOUNT_FILE:classpath:google-service-account.json}
+
+logging:
+  level:
+    root: INFO
+    com.bookstore: DEBUG
+  file:
+    name: logs/novelpop.log
+  pattern:
+    console: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n'
+    file: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n'
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 30
+      total-size-cap: 1GB

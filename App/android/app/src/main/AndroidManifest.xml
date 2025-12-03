@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Permission for Google Play Billing -->
+    <uses-permission android:name="com.android.vending.BILLING" />
+
     <application
-        android:label="book_store"
+        android:label="NovelPop"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

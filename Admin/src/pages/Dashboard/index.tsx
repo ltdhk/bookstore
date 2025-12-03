@@ -1,97 +1,146 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Col, Row, Statistic } from 'antd';
-import { UserOutlined, BookOutlined, DollarOutlined, ReadOutlined } from '@ant-design/icons';
-import { getDashboardStats } from '../../api/dashboard';
-import RevenueChart from '../../components/Charts/RevenueChart';
+import { Row, Col, Card, Button, Space } from 'antd';
+import { ReloadOutlined } from '@ant-design/icons';
+import dayjs from 'dayjs';
+import {
+  getDashboardStats,
+  getPasscodeRanking,
+  getDistributorRanking,
+  getRevenueTrend,
+  getTopBooks,
+  type DashboardStats,
+  type PasscodeRanking,
+  type DistributorRevenueRanking,
+  type RevenueTrend,
+  type TopBook,
+} from '../../api/dashboard';
+import StatsCards from '../../components/Dashboard/StatsCards';
+import DateRangeSelector from '../../components/Dashboard/DateRangeSelector';
+import PasscodeRankingTable from '../../components/Dashboard/PasscodeRankingTable';
+import DistributorRankingTable from '../../components/Dashboard/DistributorRankingTable';
+import RevenueTrendChart from '../../components/Dashboard/RevenueTrendChart';
 import TopBooksChart from '../../components/Charts/TopBooksChart';
-import UserMapChart from '../../components/Charts/UserMapChart';
 
 const Dashboard: React.FC = () => {
-  const [stats, setStats] = useState<any>({});
+  const [stats, setStats] = useState<DashboardStats>({
+    totalUsers: 0,
+    activeUsers: 0,
+    totalBooks: 0,
+    totalOrders: 0,
+    totalRevenue: 0,
+  });
+  const [passcodeRanking, setPasscodeRanking] = useState<PasscodeRanking[]>([]);
+  const [distributorRanking, setDistributorRanking] = useState<DistributorRevenueRanking[]>([]);
+  const [revenueTrend, setRevenueTrend] = useState<RevenueTrend[]>([]);
+  const [topBooks, setTopBooks] = useState<TopBook[]>([]);
+
+  const [dateRange, setDateRange] = useState<[string, string] | null>([
+    dayjs().subtract(30, 'day').format('YYYY-MM-DD HH:mm:ss'),
+    dayjs().format('YYYY-MM-DD HH:mm:ss'),
+  ]);
   const [loading, setLoading] = useState(false);
 
+  const fetchAllData = async () => {
+    setLoading(true);
+    try {
+      const [statsRes, passcodeRes, distributorRes, trendRes, booksRes]: any = await Promise.all([
+        getDashboardStats(),
+        getPasscodeRanking({
+          startDate: dateRange?.[0],
+          endDate: dateRange?.[1],
+          limit: 10,
+        }),
+        getDistributorRanking({
+          startDate: dateRange?.[0],
+          endDate: dateRange?.[1],
+          limit: 10,
+        }),
+        getRevenueTrend({
+          startDate: dateRange?.[0],
+          endDate: dateRange?.[1],
+        }),
+        getTopBooks({ limit: 10 }),
+      ]);
+
+      setStats(statsRes.data || stats);
+      setPasscodeRanking(passcodeRes.data || []);
+      setDistributorRanking(distributorRes.data || []);
+      setRevenueTrend(trendRes.data || []);
+      setTopBooks(booksRes.data || []);
+    } catch (error) {
+      console.error('Failed to fetch dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchStats = async () => {
-      setLoading(true);
-      try {
-        const res: any = await getDashboardStats();
-        setStats(res.data || {});
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchStats();
-  }, []);
+    fetchAllData();
+  }, [dateRange]);
+
+  const cardStyle = {
+    borderRadius: 12,
+    boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.03), 0 1px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px 0 rgba(0, 0, 0, 0.02)',
+  };
 
   return (
-    <div>
-      <Row gutter={16}>
-        <Col span={6}>
-          <Card loading={loading}>
-            <Statistic
-              title="活跃用户"
-              value={stats.activeUsers || 0}
-              prefix={<UserOutlined />}
-              valueStyle={{ color: '#3f8600' }}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card loading={loading}>
-            <Statistic
-              title="书籍总数"
-              value={stats.totalBooks || 0}
-              prefix={<BookOutlined />}
-              valueStyle={{ color: '#cf1322' }}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card loading={loading}>
-            <Statistic
-              title="总收入"
-              value={stats.totalRevenue || 0}
-              precision={2}
-              prefix={<DollarOutlined />}
-              valueStyle={{ color: '#1890ff' }}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card loading={loading}>
-            <Statistic
-              title="阅读时长 (小时)"
-              value={stats.readingTime || 0}
-              prefix={<ReadOutlined />}
-            />
-          </Card>
-        </Col>
-      </Row>
-      
+    <div style={{ padding: '24px', background: '#fff', minHeight: '100vh' }}>
+      <div style={{
+        marginBottom: 24,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingBottom: 16,
+        borderBottom: '1px solid #f0f0f0',
+      }}>
+        <h2 style={{ margin: 0, fontSize: 24, fontWeight: 600, color: '#262626' }}>数据看板</h2>
+        <Space size="middle">
+          <DateRangeSelector onChange={setDateRange} />
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={fetchAllData}
+            type="primary"
+            style={{ borderRadius: 6 }}
+          >
+            刷新
+          </Button>
+        </Space>
+      </div>
+
+      <StatsCards stats={stats} loading={loading} />
+
       <div style={{ marginTop: 24 }}>
-        <Row gutter={24}>
-          <Col span={16}>
-            <div style={{ background: '#fff', padding: 24, borderRadius: 8 }}>
-              <h3>收入趋势</h3>
-              <RevenueChart />
-            </div>
+        <Card
+          bordered={false}
+          style={cardStyle}
+          bodyStyle={{ padding: '24px' }}
+        >
+          <RevenueTrendChart data={revenueTrend} />
+        </Card>
+      </div>
+
+      <div style={{ marginTop: 24 }}>
+        <Row gutter={[16, 16]}>
+          <Col xs={24} xl={12}>
+            <PasscodeRankingTable data={passcodeRanking} loading={loading} />
           </Col>
-          <Col span={8}>
-            <div style={{ background: '#fff', padding: 24, borderRadius: 8 }}>
-              <h3>用户分布</h3>
-              <UserMapChart />
-            </div>
+          <Col xs={24} xl={12}>
+            <DistributorRankingTable data={distributorRanking} loading={loading} />
           </Col>
         </Row>
       </div>
 
       <div style={{ marginTop: 24 }}>
-        <div style={{ background: '#fff', padding: 24, borderRadius: 8 }}>
-          <h3>热门书籍 Top 10</h3>
-          <TopBooksChart />
-        </div>
+        <Card
+          bordered={false}
+          style={cardStyle}
+          bodyStyle={{ padding: '24px' }}
+        >
+          <h3 style={{ margin: '0 0 16px 0', fontSize: 18, fontWeight: 600, color: '#262626' }}>
+            热门书籍 Top 10
+          </h3>
+          <TopBooksChart data={topBooks} />
+        </Card>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-package com.antigravity.bookstore.book_store
+package com.novel.novelpop
 
 import io.flutter.embedding.android.FlutterActivity
 

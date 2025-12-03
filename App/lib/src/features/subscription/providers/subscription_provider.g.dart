@@ -8,6 +8,59 @@ part of 'subscription_provider.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
+/// Provider for InAppPurchaseService
+
+@ProviderFor(inAppPurchaseService)
+const inAppPurchaseServiceProvider = InAppPurchaseServiceProvider._();
+
+/// Provider for InAppPurchaseService
+
+final class InAppPurchaseServiceProvider
+    extends
+        $FunctionalProvider<
+          InAppPurchaseService,
+          InAppPurchaseService,
+          InAppPurchaseService
+        >
+    with $Provider<InAppPurchaseService> {
+  /// Provider for InAppPurchaseService
+  const InAppPurchaseServiceProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'inAppPurchaseServiceProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$inAppPurchaseServiceHash();
+
+  @$internal
+  @override
+  $ProviderElement<InAppPurchaseService> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  InAppPurchaseService create(Ref ref) {
+    return inAppPurchaseService(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(InAppPurchaseService value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<InAppPurchaseService>(value),
+    );
+  }
+}
+
+String _$inAppPurchaseServiceHash() =>
+    r'677921427f98dd038ceb7be17f348bb270d1895c';
+
 /// Provider for subscription products list
 
 @ProviderFor(subscriptionProducts)

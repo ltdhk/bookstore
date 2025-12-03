@@ -1,10 +1,19 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:book_store/src/features/subscription/data/subscription_api_service.dart';
-import 'package:book_store/src/features/subscription/data/models/subscription_product.dart';
-import 'package:book_store/src/features/subscription/data/models/subscription_status.dart';
+import 'package:novelpop/src/features/subscription/data/subscription_api_service.dart';
+import 'package:novelpop/src/features/subscription/data/models/subscription_product.dart';
+import 'package:novelpop/src/features/subscription/data/models/subscription_status.dart';
+import 'package:novelpop/src/services/iap/in_app_purchase_service.dart';
 import 'dart:io' show Platform;
 
 part 'subscription_provider.g.dart';
+
+/// Provider for InAppPurchaseService
+@riverpod
+InAppPurchaseService inAppPurchaseService(Ref ref) {
+  return InAppPurchaseService(
+    ref.watch(subscriptionApiServiceProvider),
+  );
+}
 
 /// Provider for subscription products list
 @riverpod

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:book_store/src/features/subscription/data/models/subscription_product.dart';
-import 'package:book_store/src/features/subscription/data/models/subscription_create_request.dart';
-import 'package:book_store/src/features/subscription/data/subscription_api_service.dart';
-import 'package:book_store/src/features/subscription/providers/subscription_provider.dart';
-import 'package:book_store/src/features/passcode/providers/passcode_provider.dart';
-import 'package:book_store/src/features/passcode/data/passcode_api_service.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:novelpop/src/features/subscription/data/models/subscription_product.dart';
+import 'package:novelpop/src/features/subscription/providers/subscription_provider.dart';
+import 'package:novelpop/src/features/passcode/providers/passcode_provider.dart';
+import 'package:novelpop/src/features/passcode/data/passcode_api_service.dart';
+import 'package:novelpop/src/services/iap/platform_product_config.dart';
 
 class SubscriptionDialog extends ConsumerStatefulWidget {
   final int? sourceBookId;
@@ -24,7 +24,46 @@ class SubscriptionDialog extends ConsumerStatefulWidget {
 
 class _SubscriptionDialogState extends ConsumerState<SubscriptionDialog> {
   String? _selectedProductId;
+  String? _selectedPlanType; // 'weekly', 'monthly', 'yearly'
   bool _isProcessing = false;
+  Map<String, ProductDetails>? _iapProducts;
+  bool _iapAvailable = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeIAP();
+  }
+
+  Future<void> _initializeIAP() async {
+    try {
+      final iapService = ref.read(inAppPurchaseServiceProvider);
+      final available = await iapService.initialize();
+
+      if (available) {
+        // Load available products from store
+        final productIds = PlatformProductConfig.getAllPlatformProductIds();
+        final products = await iapService.queryProducts(productIds);
+
+        if (mounted) {
+          setState(() {
+            _iapAvailable = true;
+            _iapProducts = {
+              for (var product in products) product.id: product
+            };
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed to initialize IAP: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    // IAP service will handle its own disposal
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -89,12 +128,12 @@ class _SubscriptionDialogState extends ConsumerState<SubscriptionDialog> {
     Map<String, SubscriptionProduct> products,
     bool isDark,
   ) {
+    final weekly = products['weekly'];
     final monthly = products['monthly'];
-    final quarterly = products['quarterly'];
     final yearly = products['yearly'];
 
-    // Calculate savings
-    final monthlyPrice = monthly?.price ?? 9.99;
+    // Calculate savings based on weekly price
+    final weeklyPrice = weekly?.price ?? 19.9;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -143,20 +182,20 @@ class _SubscriptionDialogState extends ConsumerState<SubscriptionDialog> {
         const SizedBox(height: 24),
 
         // Subscription options
-        if (monthly != null)
+        if (weekly != null)
           _buildSubscriptionOption(
-            monthly,
-            'Monthly',
+            weekly,
+            'Weekly',
             null,
             isDark,
             false,
           ),
-        if (quarterly != null) ...[
+        if (monthly != null) ...[
           const SizedBox(height: 12),
           _buildSubscriptionOption(
-            quarterly,
-            'Quarterly',
-            quarterly.getSavingsPercentage(monthlyPrice),
+            monthly,
+            'Monthly',
+            monthly.getSavingsPercentage(weeklyPrice * 4),
             isDark,
             false,
           ),
@@ -166,7 +205,7 @@ class _SubscriptionDialogState extends ConsumerState<SubscriptionDialog> {
           _buildSubscriptionOption(
             yearly,
             'Annual',
-            yearly.getSavingsPercentage(monthlyPrice),
+            yearly.getSavingsPercentage(weeklyPrice * 52),
             isDark,
             true,
           ),
@@ -235,6 +274,7 @@ class _SubscriptionDialogState extends ConsumerState<SubscriptionDialog> {
       onTap: () {
         setState(() {
           _selectedProductId = product.productId;
+          _selectedPlanType = product.planType; // Store plan type for IAP
         });
       },
       child: Container(
@@ -366,7 +406,21 @@ class _SubscriptionDialogState extends ConsumerState<SubscriptionDialog> {
   }
 
   Future<void> _handleSubscribe(BuildContext context) async {
-    if (_selectedProductId == null) return;
+    if (_selectedProductId == null || _selectedPlanType == null) return;
+
+    // Check if IAP is available and products are loaded
+    if (!_iapAvailable || _iapProducts == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('In-app purchase is not available on this device'),
+            backgroundColor: Colors.red[400],
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+      return;
+    }
 
     setState(() {
       _isProcessing = true;
@@ -374,6 +428,15 @@ class _SubscriptionDialogState extends ConsumerState<SubscriptionDialog> {
 
     try {
       final platform = getCurrentPlatform();
+
+      // Get platform-specific product ID
+      final platformProductId = PlatformProductConfig.getPlatformProductId(_selectedPlanType!);
+
+      // Get ProductDetails from IAP
+      final productDetails = _iapProducts![platformProductId];
+      if (productDetails == null) {
+        throw Exception('Product not found: $platformProductId');
+      }
 
       // Get passcode context if available and matches current book
       final passcodeContext = ref.read(activePasscodeContextProvider);
@@ -388,57 +451,98 @@ class _SubscriptionDialogState extends ConsumerState<SubscriptionDialog> {
           ? passcodeContext.distributorId
           : null;
 
-      final request = SubscriptionCreateRequest(
-        productId: _selectedProductId!,
+      // Setup IAP service callbacks
+      final iapService = ref.read(inAppPurchaseServiceProvider);
+
+      iapService.onPurchaseSuccess = (purchase) async {
+        debugPrint('Purchase successful: ${purchase.productID}');
+
+        // Track 'sub' action if subscription was via passcode
+        if (passcodeId != null) {
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            final userIdStr = prefs.getString('user_id');
+            final userId = userIdStr != null ? int.tryParse(userIdStr) : null;
+            final passcodeApiService = ref.read(passcodeApiServiceProvider);
+            await passcodeApiService.trackSubscription(passcodeId: passcodeId, userId: userId);
+            debugPrint('Passcode sub action tracked: $passcodeId, userId: $userId');
+          } catch (e) {
+            debugPrint('Failed to track passcode sub action: $e');
+          }
+        }
+
+        // Refresh subscription status
+        ref.invalidate(subscriptionStatusProvider);
+        ref.invalidate(subscriptionValidProvider);
+
+        if (context.mounted) {
+          Navigator.of(context).pop(true);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Subscription successful! You are now a SVIP member.'),
+              backgroundColor: Color(0xFF4CAF50),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+
+        setState(() {
+          _isProcessing = false;
+        });
+      };
+
+      iapService.onPurchaseError = (purchase, error) {
+        debugPrint('Purchase error: $error');
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Subscription failed: $error'),
+              backgroundColor: Colors.red[400],
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+
+        setState(() {
+          _isProcessing = false;
+        });
+      };
+
+      iapService.onPurchasePending = () {
+        debugPrint('Purchase pending...');
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Purchase is pending... Please wait.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      };
+
+      // Initiate the purchase
+      await iapService.purchaseProduct(
+        productDetails,
         platform: platform,
+        productId: _selectedProductId!,
+        distributorId: distributorId,
+        sourcePasscodeId: passcodeId,
         sourceBookId: widget.sourceBookId,
         sourceEntry: widget.sourceEntry,
-        sourcePasscodeId: passcodeId,
-        distributorId: distributorId,
       );
-
-      final apiService = ref.read(subscriptionApiServiceProvider);
-      await apiService.createSubscription(request);
-
-      // Track 'sub' action if subscription was via passcode
-      if (passcodeId != null) {
-        try {
-          final prefs = await SharedPreferences.getInstance();
-          final userIdStr = prefs.getString('user_id');
-          final userId = userIdStr != null ? int.tryParse(userIdStr) : null;
-          final passcodeApiService = ref.read(passcodeApiServiceProvider);
-          await passcodeApiService.trackSubscription(passcodeId: passcodeId, userId: userId);
-          debugPrint('Passcode sub action tracked: $passcodeId, userId: $userId');
-        } catch (e) {
-          debugPrint('Failed to track passcode sub action: $e');
-        }
-      }
-
-      // Refresh subscription status
-      ref.invalidate(subscriptionStatusProvider);
-      ref.invalidate(subscriptionValidProvider);
-
-      if (context.mounted) {
-        Navigator.of(context).pop(true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Subscription successful! You are now a SVIP member.'),
-            backgroundColor: Color(0xFF4CAF50),
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
     } catch (e) {
+      debugPrint('Failed to initiate purchase: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Subscription failed: ${e.toString()}'),
+            content: Text('Failed to start purchase: ${e.toString()}'),
             backgroundColor: Colors.red[400],
             duration: const Duration(seconds: 3),
           ),
         );
       }
-    } finally {
+
       if (mounted) {
         setState(() {
           _isProcessing = false;

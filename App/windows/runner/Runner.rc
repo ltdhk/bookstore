@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.antigravity.bookstore" "\0"
-            VALUE "FileDescription", "book_store" "\0"
+            VALUE "CompanyName", "com.novel.novelpop" "\0"
+            VALUE "FileDescription", "NovelPop" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "book_store" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2025 com.antigravity.bookstore. All rights reserved." "\0"
-            VALUE "OriginalFilename", "book_store.exe" "\0"
-            VALUE "ProductName", "book_store" "\0"
+            VALUE "InternalName", "novelpop" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2025 com.novel.novelpop. All rights reserved." "\0"
+            VALUE "OriginalFilename", "novelpop.exe" "\0"
+            VALUE "ProductName", "NovelPop" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

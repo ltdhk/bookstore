@@ -1,5 +1,5 @@
-import 'package:book_store/src/features/home/data/models/book_vo.dart';
-import 'package:book_store/src/features/reader/data/models/chapter_vo.dart';
+import 'package:novelpop/src/features/home/data/models/book_vo.dart';
+import 'package:novelpop/src/features/reader/data/models/chapter_vo.dart';
 
 /// Combined data for reader page - reduces multiple API calls to one
 class ReaderData {

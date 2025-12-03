@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:book_store/src/features/home/presentation/widgets/home_banner.dart';
-import 'package:book_store/src/features/home/providers/books_pagination_provider.dart';
-import 'package:book_store/src/features/home/data/models/book_vo.dart';
-import 'package:book_store/src/features/home/data/book_api_service.dart';
+import 'package:novelpop/src/features/home/presentation/widgets/home_banner.dart';
+import 'package:novelpop/src/features/home/providers/books_pagination_provider.dart';
+import 'package:novelpop/src/features/home/data/models/book_vo.dart';
+import 'package:novelpop/src/features/home/data/book_api_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
-import 'package:book_store/l10n/app_localizations.dart';
+import 'package:novelpop/l10n/app_localizations.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -70,11 +70,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 dividerColor: Colors.transparent,
                 tabAlignment: TabAlignment.start,
                 labelPadding: const EdgeInsets.only(right: 24.0),
-                tabs: const [
-                  Tab(text: 'Hot'),
-                  Tab(text: 'New'),
-                  Tab(text: 'Male'),
-                  Tab(text: 'Female'),
+                tabs: [
+                  Tab(text: l10n.hot),
+                  Tab(text: l10n.newTab),
+                  Tab(text: l10n.male),
+                  Tab(text: l10n.female),
                 ],
               ),
             ),

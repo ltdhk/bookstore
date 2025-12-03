@@ -17,6 +17,8 @@ public class User {
     private String email;
     private String phone;
     private String avatar;
+    private String appleUserId;  // Apple Sign In unique identifier
+    private String googleUserId; // Google Sign In unique identifier
     private Integer coins;
     private Integer bonus;
     private Boolean isSvip;

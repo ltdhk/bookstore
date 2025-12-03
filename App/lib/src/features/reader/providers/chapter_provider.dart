@@ -1,10 +1,10 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:book_store/src/features/home/data/book_api_service.dart';
-import 'package:book_store/src/features/reader/data/models/chapter_vo.dart';
-import 'package:book_store/src/features/reader/data/models/reader_data.dart';
+import 'package:novelpop/src/features/home/data/book_api_service.dart';
+import 'package:novelpop/src/features/reader/data/models/chapter_vo.dart';
+import 'package:novelpop/src/features/reader/data/models/reader_data.dart';
 
 // Re-export ReaderData for compatibility
-export 'package:book_store/src/features/reader/data/models/reader_data.dart';
+export 'package:novelpop/src/features/reader/data/models/reader_data.dart';
 
 part 'chapter_provider.g.dart';
 

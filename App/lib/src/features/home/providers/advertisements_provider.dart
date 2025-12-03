@@ -1,6 +1,6 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:book_store/src/features/home/data/advertisement_api_service.dart';
-import 'package:book_store/src/features/home/data/models/advertisement.dart';
+import 'package:novelpop/src/features/home/data/advertisement_api_service.dart';
+import 'package:novelpop/src/features/home/data/models/advertisement.dart';
 
 part 'advertisements_provider.g.dart';
 

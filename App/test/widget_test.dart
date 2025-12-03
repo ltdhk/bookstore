@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:book_store/src/app.dart';
+import 'package:novelpop/src/app.dart';
 
 void main() {
   testWidgets('App smoke test', (WidgetTester tester) async {

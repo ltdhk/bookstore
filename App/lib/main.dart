@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:book_store/src/app.dart';
-import 'package:book_store/src/features/bookshelf/data/bookshelf_local_storage.dart';
+import 'package:novelpop/src/app.dart';
+import 'package:novelpop/src/features/bookshelf/data/bookshelf_local_storage.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 void main() async {

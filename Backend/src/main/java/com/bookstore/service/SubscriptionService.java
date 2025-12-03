@@ -3,6 +3,7 @@ package com.bookstore.service;
 import com.bookstore.dto.SubscriptionCreateRequest;
 import com.bookstore.dto.SubscriptionProductDTO;
 import com.bookstore.dto.SubscriptionStatusDTO;
+import com.bookstore.dto.SubscriptionVerifyRequest;
 import com.bookstore.entity.Order;
 import com.bookstore.entity.SubscriptionProduct;
 
@@ -49,4 +50,9 @@ public interface SubscriptionService {
      * Get subscription product by product ID
      */
     SubscriptionProduct getProductByProductId(String productId);
+
+    /**
+     * Verify purchase receipt and activate subscription
+     */
+    Order verifyAndActivateSubscription(Long userId, SubscriptionVerifyRequest request);
 }

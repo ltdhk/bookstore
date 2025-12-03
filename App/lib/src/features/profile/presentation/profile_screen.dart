@@ -1,9 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:book_store/src/features/auth/providers/auth_provider.dart';
-import 'package:book_store/l10n/app_localizations.dart';
-import 'package:book_store/src/features/subscription/presentation/subscription_dialog.dart';
+import 'package:novelpop/src/config/google_config.dart';
+import 'package:novelpop/src/features/auth/providers/auth_provider.dart';
+import 'package:novelpop/l10n/app_localizations.dart';
+import 'package:novelpop/src/features/subscription/presentation/subscription_dialog.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -32,6 +34,7 @@ class ProfileScreen extends ConsumerWidget {
 
   void _showLoginDialog(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final l10n = AppLocalizations.of(context)!;
 
     showModalBottomSheet(
       context: context,
@@ -67,27 +70,19 @@ class ProfileScreen extends ConsumerWidget {
               height: 100,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFFF6B9D), Color(0xFFFF3D7F)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
               ),
-              child: const Center(
-                child: Text(
-                  'M',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 60,
-                    fontWeight: FontWeight.bold,
-                  ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  fit: BoxFit.cover,
                 ),
               ),
             ),
             const SizedBox(height: 24),
             // App name
             Text(
-              'Novel Master',
+              l10n.novelMaster,
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
@@ -96,57 +91,104 @@ class ProfileScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 40),
             // Login with Apple button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  // TODO: Implement Apple login
-                  Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF6B9D),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16.0),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
+            Consumer(
+              builder: (context, ref, child) {
+                return SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      Navigator.pop(context);
+
+                      if (!Platform.isIOS) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Apple登录仅支持iOS设备'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
+
+                      await ref.read(authProvider.notifier).loginWithApple();
+
+                      if (!context.mounted) return;
+
+                      final authState = ref.read(authProvider);
+                      if (authState.hasError) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Apple登录失败: ${authState.error}'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF6B9D),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16.0),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      l10n.loginViaApple,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  'Log in via apple',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
+                );
+              },
             ),
             const SizedBox(height: 16),
             // Login with Google button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  // TODO: Implement Google login
-                  Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF6B9D),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16.0),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
+            Consumer(
+              builder: (context, ref, child) {
+                return SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      Navigator.pop(context);
+
+                      await ref.read(authProvider.notifier).loginWithGoogle(
+                        webClientId: GoogleConfig.webClientId,
+                        iosClientId: Platform.isIOS ? GoogleConfig.iosClientId : null,
+                      );
+
+                      if (!context.mounted) return;
+
+                      final authState = ref.read(authProvider);
+                      if (authState.hasError) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Google登录失败: ${authState.error}'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF6B9D),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16.0),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      l10n.loginViaGoogle,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  'Log in via google',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
+                );
+              },
             ),
             const SizedBox(height: 16),
             // Login with Email button
@@ -166,9 +208,9 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                   elevation: 0,
                 ),
-                child: const Text(
-                  'Log in via Email',
-                  style: TextStyle(
+                child: Text(
+                  l10n.loginViaEmail,
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
@@ -184,19 +226,19 @@ class ProfileScreen extends ConsumerWidget {
                   color: isDark ? Colors.grey[400] : Colors.grey[600],
                   fontSize: 12,
                 ),
-                children: const [
-                  TextSpan(text: 'When you log in, we will assume that you have read and agreed to the\n'),
+                children: [
+                  TextSpan(text: l10n.whenYouLogin),
                   TextSpan(
-                    text: 'User Agreement',
-                    style: TextStyle(
+                    text: l10n.userAgreement,
+                    style: const TextStyle(
                       color: Color(0xFFFF6B9D),
                       decoration: TextDecoration.underline,
                     ),
                   ),
                   TextSpan(text: ' & '),
                   TextSpan(
-                    text: 'Privacy Agreement',
-                    style: TextStyle(
+                    text: l10n.privacyAgreement,
+                    style: const TextStyle(
                       color: Color(0xFFFF6B9D),
                       decoration: TextDecoration.underline,
                     ),
@@ -323,7 +365,7 @@ class ProfileScreen extends ConsumerWidget {
                               borderRadius: BorderRadius.circular(20),
                             ),
                           ),
-                          child: const Text('Log In'),
+                          child: Text(l10n.login),
                         )
                       else
                         ElevatedButton(
@@ -337,7 +379,7 @@ class ProfileScreen extends ConsumerWidget {
                               borderRadius: BorderRadius.circular(20),
                             ),
                           ),
-                          child: const Text('Log Out'),
+                          child: Text(l10n.logout),
                         ),
                     ],
                   );
@@ -355,7 +397,7 @@ class ProfileScreen extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Loading...',
+                            l10n.loading,
                             style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -402,7 +444,7 @@ class ProfileScreen extends ConsumerWidget {
                           borderRadius: BorderRadius.circular(20),
                         ),
                       ),
-                      child: const Text('Log In'),
+                      child: Text(l10n.login),
                     ),
                   ],
                 ),
@@ -421,20 +463,20 @@ class ProfileScreen extends ConsumerWidget {
                 children: [
                   const Icon(Icons.star, color: Colors.amber),
                   const SizedBox(width: 8),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'SVIP MEMBERSHIP',
-                          style: TextStyle(
+                          l10n.svipMembership,
+                          style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         Text(
-                          'Read all novels on the site without restrictions',
-                          style: TextStyle(color: Colors.white70, fontSize: 10),
+                          l10n.readAllNovels,
+                          style: const TextStyle(color: Colors.white70, fontSize: 10),
                         ),
                       ],
                     ),
@@ -449,7 +491,7 @@ class ProfileScreen extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(20),
                       ),
                     ),
-                    child: const Text('Subscribe now'),
+                    child: Text(l10n.subscribeNow),
                   ),
                 ],
               ),
@@ -467,7 +509,7 @@ class ProfileScreen extends ConsumerWidget {
                   _buildMenuItem(
                     context,
                     Icons.history,
-                    'Reading history',
+                    l10n.readingHistory,
                     isDark,
                     onTap: () => context.push('/reading-history'),
                   ),
@@ -479,7 +521,7 @@ class ProfileScreen extends ConsumerWidget {
                   _buildMenuItem(
                     context,
                     Icons.account_balance_wallet_outlined,
-                    'Transaction Record',
+                    l10n.transactionRecord,
                     isDark,
                     onTap: () => context.push('/transaction-record'),
                   ),
@@ -491,7 +533,7 @@ class ProfileScreen extends ConsumerWidget {
                   _buildMenuItem(
                     context,
                     Icons.settings_outlined,
-                    'Setting',
+                    l10n.setting,
                     isDark,
                     onTap: () => context.go('/profile/settings'),
                   ),

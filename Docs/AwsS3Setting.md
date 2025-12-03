@@ -137,3 +137,9 @@ S3存储费用：按存储量计费（前5GB免费/月，12个月免费套餐）
 配置完成后，你的图片上传功能就可以正常使用了！
 
 
+
+
+访问密钥
+YOUR_AWS_ACCESS_KEY_HERE
+秘密访问密钥
+YOUR_AWS_SECRET_KEY_HERE

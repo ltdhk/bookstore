@@ -3,21 +3,266 @@
   "@appTitle": {
     "description": "The title of the application"
   },
+
   "home": "Home",
   "bookshelf": "Bookshelf",
   "profile": "My",
-  "searchHint": "Search for novel",
+
+  "hot": "Hot",
+  "newTab": "New",
+  "male": "Male",
+  "female": "Female",
+
+  "searchHint": "Search for novel next",
   "settings": "Setting",
   "darkMode": "Dark Mode",
   "alwaysLightMode": "Always Light Mode",
   "autoUnlockChapter": "Auto unlock chapter",
   "language": "Language",
   "versionUpdate": "Version Update",
-  "about": "About Novel Master",
-  "rate": "Rate Novel Master",
+  "about": "About Novel Next",
+  "rate": "Rate Novel Next",
   "followSystem": "Follow System",
   "alwaysDark": "Always Dark Mode",
   "alwaysLight": "Always Light Mode",
   "svipMember": "SVIP",
-  "regularMember": "Member"
+  "regularMember": "Member",
+
+  "login": "Log In",
+  "logout": "Log Out",
+  "signUp": "Sign Up",
+  "register": "Register",
+  "welcomeBack": "Welcome Back",
+  "loginToYourAccount": "Log in to your account",
+  "createAccount": "Create Account",
+  "signUpToGetStarted": "Sign up to get started",
+
+  "email": "Email",
+  "password": "Password",
+  "confirmPassword": "Confirm Password",
+  "nickname": "Nickname (Optional)",
+  "forgotPassword": "Forgot Password?",
+
+  "pleaseEnterEmail": "Please enter your email",
+  "pleaseEnterValidEmail": "Please enter a valid email",
+  "pleaseEnterPassword": "Please enter your password",
+  "passwordMinLength": "Password must be at least 6 characters",
+  "pleaseConfirmPassword": "Please confirm your password",
+  "passwordsDoNotMatch": "Passwords do not match",
+
+  "loginFailed": "Login failed: {error}",
+  "@loginFailed": {
+    "description": "Error message when login fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+
+  "registrationFailed": "Registration failed: {error}",
+  "@registrationFailed": {
+    "description": "Error message when registration fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+
+  "registrationSuccessful": "Registration successful! Please login.",
+  "agreeToTerms": "Please agree to the Terms and Privacy Policy",
+  "iAgreeToThe": "I agree to the ",
+  "userAgreement": "User Agreement",
+  "and": " and ",
+  "privacyPolicy": "Privacy Policy",
+  "privacyAgreement": "Privacy Agreement",
+  "whenYouLogin": "When you log in, we will assume that you have read and agreed to the\n",
+
+  "loginViaApple": "Log in via apple",
+  "loginViaGoogle": "Log in via google",
+  "loginViaEmail": "Log in via Email",
+  "dontHaveAccount": "Don't have an account? ",
+  "alreadyHaveAccount": "Already have an account? ",
+
+  "svipMembership": "SVIP MEMBERSHIP",
+  "readAllNovels": "Read all novels on the site without restrictions",
+  "subscribeNow": "Subscribe now",
+
+  "readingHistory": "Reading history",
+  "transactionRecord": "Transaction Record",
+  "setting": "Setting",
+
+  "myBookshelf": "My bookshelf",
+  "edit": "Edit",
+  "cancel": "cancel",
+  "delete": "Delete",
+  "deleteBooks": "Delete Books",
+  "deleteBooksConfirm": "Delete {count} book(s) from your bookshelf?",
+  "@deleteBooksConfirm": {
+    "description": "Confirmation message for deleting books",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "booksRemoved": "Books removed from bookshelf",
+  "errorRemovingBooks": "Error removing books: {error}",
+  "@errorRemovingBooks": {
+    "description": "Error message when removing books fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noBooksInBookshelf": "No books in your bookshelf",
+  "browseBooks": "Browse books",
+
+  "description": "Description",
+  "reads": "Reads",
+  "addToBookshelf": "Add to Bookshelf",
+  "readNow": "Read Now",
+  "continueReading": "Continue Reading",
+
+  "clearAll": "Clear All",
+  "clearHistoryConfirm": "Are you sure you want to clear all reading history?",
+  "historyClearedSuccess": "Reading history cleared successfully",
+  "errorClearingHistory": "Error clearing history: {error}",
+  "@errorClearingHistory": {
+    "description": "Error message when clearing history fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noReadingHistory": "No reading history yet",
+  "startReadingBooks": "Start reading some books to see your history here",
+  "errorLoadingHistory": "Error loading history: {error}",
+  "@errorLoadingHistory": {
+    "description": "Error message when loading history fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+
+  "justNow": "Just now",
+  "minutesAgo": "{minutes} minutes ago",
+  "@minutesAgo": {
+    "description": "Time format for minutes ago",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "today": "Today",
+  "yesterday": "Yesterday",
+  "todayAt": "Today {time}",
+  "@todayAt": {
+    "description": "Today with time",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "yesterdayAt": "Yesterday {time}",
+  "@yesterdayAt": {
+    "description": "Yesterday with time",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+
+  "pleaseLoginToView": "Please log in to view transaction records",
+  "noTransactionRecords": "No transaction records yet",
+  "noTransactionHint": "Your subscription purchases will appear here",
+  "errorLoadingOrders": "Error loading orders: {error}",
+  "@errorLoadingOrders": {
+    "description": "Error message when loading orders fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "loadMore": "Load More",
+  "noMoreOrders": "No more orders",
+
+  "pending": "Pending",
+  "paid": "Paid",
+  "refunded": "Refunded",
+
+  "failedToLoadSubscriptions": "Failed to load subscriptions",
+  "subscribeToSVIP": "Subscribe to SVIP",
+  "unlockAllContent": "Unlock all content",
+  "monthlyPlan": "Monthly Plan",
+  "quarterlyPlan": "Quarterly Plan",
+  "yearlyPlan": "Yearly Plan",
+  "perMonth": "/month",
+  "save": "Save {percent}%",
+  "@save": {
+    "description": "Savings percentage",
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "totalPrice": "Total: ${price}",
+  "@totalPrice": {
+    "description": "Total price display",
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "subscribe": "Subscribe",
+  "usePasscode": "Use Passcode",
+  "enterPasscode": "Enter Passcode",
+  "passcodeHint": "Enter your 16-digit passcode",
+  "apply": "Apply",
+  "invalidPasscode": "Invalid passcode format. Please enter a 16-digit code.",
+  "successfullySubscribed": "Successfully subscribed to {productName}!",
+  "@successfullySubscribed": {
+    "description": "Success message for subscription",
+    "placeholders": {
+      "productName": {
+        "type": "String"
+      }
+    }
+  },
+  "subscriptionFailed": "Subscription failed: {error}",
+  "@subscriptionFailed": {
+    "description": "Error message for subscription failure",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "processing": "Processing...",
+
+  "chapter": "Chapter {number}",
+  "@chapter": {
+    "description": "Chapter number",
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "chapterLocked": "This chapter is locked",
+  "unlockWithSVIP": "Subscribe to SVIP to unlock",
+  "chapterLoadError": "Failed to load chapter",
+  "loading": "Loading...",
+  "novelMaster": "Novel Next"
 }

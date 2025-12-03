@@ -1,6 +1,6 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:book_store/src/features/transaction_record/data/transaction_api_service.dart';
-import 'package:book_store/src/features/transaction_record/data/models/order.dart';
+import 'package:novelpop/src/features/transaction_record/data/transaction_api_service.dart';
+import 'package:novelpop/src/features/transaction_record/data/models/order.dart';
 
 part 'transaction_provider.g.dart';
 

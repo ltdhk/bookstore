@@ -4,6 +4,7 @@ import com.bookstore.common.Result;
 import com.bookstore.dto.SubscriptionCreateRequest;
 import com.bookstore.dto.SubscriptionProductDTO;
 import com.bookstore.dto.SubscriptionStatusDTO;
+import com.bookstore.dto.SubscriptionVerifyRequest;
 import com.bookstore.entity.Order;
 import com.bookstore.service.SubscriptionService;
 import com.bookstore.util.JwtUtils;
@@ -117,6 +118,28 @@ public class SubscriptionController {
             return Result.success(isValid);
         } catch (Exception e) {
             return Result.error("Failed to check subscription: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Verify purchase receipt and activate subscription
+     */
+    @PostMapping("/verify")
+    public Result<Order> verifyPurchase(
+            @RequestBody SubscriptionVerifyRequest request,
+            HttpServletRequest httpRequest) {
+        try {
+            // Get user ID from token
+            String token = httpRequest.getHeader("Authorization");
+            if (token != null && token.startsWith("Bearer ")) {
+                token = token.substring(7);
+            }
+            Long userId = jwtUtils.getUserIdFromToken(token);
+
+            Order order = subscriptionService.verifyAndActivateSubscription(userId, request);
+            return Result.success(order);
+        } catch (Exception e) {
+            return Result.error("Failed to verify purchase: " + e.getMessage());
         }
     }
 }

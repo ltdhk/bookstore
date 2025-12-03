@@ -3,13 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:book_store/src/features/home/providers/book_provider.dart';
-import 'package:book_store/src/features/home/data/book_api_service.dart';
-import 'package:book_store/src/features/home/data/models/book_vo.dart';
-import 'package:book_store/src/features/passcode/utils/passcode_detector.dart';
-import 'package:book_store/src/features/passcode/data/passcode_api_service.dart';
-import 'package:book_store/src/features/passcode/data/models/passcode_search_result.dart';
-import 'package:book_store/src/features/passcode/providers/passcode_provider.dart';
+import 'package:novelpop/src/features/home/providers/book_provider.dart';
+import 'package:novelpop/src/features/home/data/book_api_service.dart';
+import 'package:novelpop/src/features/home/data/models/book_vo.dart';
+import 'package:novelpop/src/features/passcode/utils/passcode_detector.dart';
+import 'package:novelpop/src/features/passcode/data/passcode_api_service.dart';
+import 'package:novelpop/src/features/passcode/data/models/passcode_search_result.dart';
+import 'package:novelpop/src/features/passcode/providers/passcode_provider.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});

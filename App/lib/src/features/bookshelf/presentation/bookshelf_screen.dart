@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:book_store/src/features/bookshelf/data/bookshelf_local_storage.dart';
-import 'package:book_store/src/features/bookshelf/providers/bookshelf_provider.dart';
-import 'package:book_store/l10n/app_localizations.dart';
+import 'package:novelpop/src/features/bookshelf/data/bookshelf_local_storage.dart';
+import 'package:novelpop/src/features/bookshelf/providers/bookshelf_provider.dart';
+import 'package:novelpop/l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
 
 class BookshelfScreen extends ConsumerStatefulWidget {
@@ -39,19 +39,20 @@ class _BookshelfScreenState extends ConsumerState<BookshelfScreen> {
   Future<void> _deleteSelectedBooks() async {
     if (_selectedBooks.isEmpty) return;
 
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Books'),
-        content: Text('Delete ${_selectedBooks.length} book(s) from your bookshelf?'),
+        title: Text(l10n.deleteBooks),
+        content: Text(l10n.deleteBooksConfirm(_selectedBooks.length)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: Text(l10n.delete, style: const TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -70,18 +71,20 @@ class _BookshelfScreenState extends ConsumerState<BookshelfScreen> {
         });
 
         if (mounted) {
+          final l10n = AppLocalizations.of(context)!;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Books removed from bookshelf'),
-              duration: Duration(seconds: 2),
+            SnackBar(
+              content: Text(l10n.booksRemoved),
+              duration: const Duration(seconds: 2),
             ),
           );
         }
       } catch (e) {
         if (mounted) {
+          final l10n = AppLocalizations.of(context)!;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error removing books: $e'),
+              content: Text(l10n.errorRemovingBooks(e.toString())),
               backgroundColor: Colors.red,
               duration: const Duration(seconds: 3),
             ),
@@ -160,7 +163,7 @@ class _BookshelfScreenState extends ConsumerState<BookshelfScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'My bookshelf',
+                  l10n.myBookshelf,
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -175,7 +178,7 @@ class _BookshelfScreenState extends ConsumerState<BookshelfScreen> {
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   child: Text(
-                    _isEditMode ? 'cancel' : 'Edit',
+                    _isEditMode ? l10n.cancel : l10n.edit,
                     style: TextStyle(
                       color: isDark ? Colors.grey[400] : Colors.grey[600],
                       fontSize: 14,
@@ -202,7 +205,7 @@ class _BookshelfScreenState extends ConsumerState<BookshelfScreen> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'No books in your bookshelf',
+                          l10n.noBooksInBookshelf,
                           style: TextStyle(
                             fontSize: 16,
                             color: isDark ? Colors.grey[500] : Colors.grey[600],
@@ -211,7 +214,7 @@ class _BookshelfScreenState extends ConsumerState<BookshelfScreen> {
                         const SizedBox(height: 8),
                         TextButton(
                           onPressed: () => context.go('/'),
-                          child: const Text('Browse books'),
+                          child: Text(l10n.browseBooks),
                         ),
                       ],
                     ),
@@ -263,9 +266,9 @@ class _BookshelfScreenState extends ConsumerState<BookshelfScreen> {
                   ),
                   elevation: 0,
                 ),
-                child: const Text(
-                  'Delete',
-                  style: TextStyle(
+                child: Text(
+                  l10n.delete,
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),

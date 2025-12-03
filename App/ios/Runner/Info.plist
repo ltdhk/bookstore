@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Book Store</string>
+	<string>NovelPop</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -13,7 +13,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>book_store</string>
+	<string>novelpop</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -45,5 +45,20 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Google Sign In -->
+	<key>GIDClientID</key>
+	<string>865872944830-btf095tp1p1rubbttcotnbuud7pv6pfp.apps.googleusercontent.com</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+			<!-- 格式: com.googleusercontent.apps.后面跟iOS Client ID的数字部分 -->
+			<string>com.googleusercontent.apps.865872944830-btf095tp1p1rubbttcotnbuud7pv6pfp</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

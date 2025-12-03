@@ -91,6 +91,32 @@
             <version>2.15.1</version>
         </dependency>
 
+        <!-- Apple Sign In - JWT verification -->
+        <dependency>
+            <groupId>com.nimbusds</groupId>
+            <artifactId>nimbus-jose-jwt</artifactId>
+            <version>9.37.3</version>
+        </dependency>
+
+        <!-- Google Sign In - ID Token verification -->
+        <dependency>
+            <groupId>com.google.api-client</groupId>
+            <artifactId>google-api-client</artifactId>
+            <version>2.2.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.auth</groupId>
+            <artifactId>google-auth-library-oauth2-http</artifactId>
+            <version>1.19.0</version>
+        </dependency>
+
+        <!-- Google Play In-App Purchase - Receipt verification -->
+        <dependency>
+            <groupId>com.google.apis</groupId>
+            <artifactId>google-api-services-androidpublisher</artifactId>
+            <version>v3-rev20231201-2.0.0</version>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>

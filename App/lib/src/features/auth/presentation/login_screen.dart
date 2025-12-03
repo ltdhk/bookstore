@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:book_store/src/features/auth/providers/auth_provider.dart';
-import 'package:book_store/src/utils/crypto_utils.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:novelpop/src/features/auth/providers/auth_provider.dart';
+import 'package:novelpop/src/utils/crypto_utils.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -17,6 +19,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
   bool _isLoading = false;
+  bool _isAppleLoading = false;
 
   @override
   void dispose() {
@@ -80,6 +83,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  Future<void> _handleAppleSignIn() async {
+    setState(() {
+      _isAppleLoading = true;
+    });
+
+    await ref.read(authProvider.notifier).loginWithApple();
+
+    if (!mounted) return;
+
+    setState(() {
+      _isAppleLoading = false;
+    });
+
+    // Check if login was successful
+    final authState = ref.read(authProvider);
+    if (authState.hasError) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Apple Sign In failed: ${authState.error}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } else if (authState.hasValue && authState.value != null) {
+      context.go('/');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -113,20 +143,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     height: 100,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFF6B9D), Color(0xFFFF3D7F)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
                     ),
-                    child: const Center(
-                      child: Text(
-                        'M',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 60,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        fit: BoxFit.cover,
                       ),
                     ),
                   ),
@@ -316,6 +338,45 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ],
                 ),
+                // Apple Sign In (iOS only)
+                if (Platform.isIOS) ...[
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Divider(
+                          color: isDark ? Colors.grey[700] : Colors.grey[300],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'or',
+                          style: TextStyle(
+                            color: isDark ? Colors.grey[400] : Colors.grey[600],
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Divider(
+                          color: isDark ? Colors.grey[700] : Colors.grey[300],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: SignInWithAppleButton(
+                      onPressed: _isAppleLoading ? () {} : _handleAppleSignIn,
+                      style: isDark
+                          ? SignInWithAppleButtonStyle.white
+                          : SignInWithAppleButtonStyle.black,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
