@@ -166,9 +166,9 @@ Backend → Return 200 OK to platform
 ## 产品配置
 
 ### iOS Product IDs
-- `com.novel.novelpop.weekly` - 周卡
-- `com.novel.novelpop.monthly` - 月卡
-- `com.novel.novelpop.yearly` - 年卡
+- `com.novel.pop.weekly` - 周卡
+- `com.novel.pop.monthly` - 月卡
+- `com.novel.pop.yearly` - 年卡
 
 ### Android Product IDs
 - `novelpop_weekly` - 周卡

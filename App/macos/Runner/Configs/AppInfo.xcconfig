@@ -8,7 +8,7 @@
 PRODUCT_NAME = NovelPop
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.novel.novelpop
+PRODUCT_BUNDLE_IDENTIFIER = com.novel.pop
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2025 com.novel.novelpop. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2025 com.novel.pop. All rights reserved.

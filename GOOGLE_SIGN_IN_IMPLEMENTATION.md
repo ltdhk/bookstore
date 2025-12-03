@@ -264,7 +264,7 @@ flutter run
 ### Android登录失败 "Developer Error"
 **原因**: SHA-1指纹未配置或包名不匹配
 **解决**:
-- 确认包名为 `com.novel.novelpop` (在 `App/android/app/build.gradle.kts` 中查看)
+- 确认包名为 `com.novel.pop` (在 `App/android/app/build.gradle.kts` 中查看)
 - 重新生成SHA-1并添加到Google Console
 - 等待5-10分钟
 
@@ -272,7 +272,7 @@ flutter run
 **原因**: URL Scheme配置错误
 **解决**:
 - 检查Info.plist中的URL Scheme格式
-- 确认Bundle ID为 `com.novel.novelpop` (在 Xcode 项目中查看)
+- 确认Bundle ID为 `com.novel.pop` (在 Xcode 项目中查看)
 
 ### Token验证失败 "Invalid audience"
 **原因**: Backend配置缺少某个平台的Client ID

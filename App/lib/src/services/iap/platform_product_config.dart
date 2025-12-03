@@ -4,9 +4,9 @@ import 'dart:io';
 /// Maps internal product IDs to Apple/Google product IDs
 class PlatformProductConfig {
   // Apple App Store product IDs
-  static const String appleWeekly = 'com.novel.novelpop.weekly';
-  static const String appleMonthly = 'com.novel.novelpop.monthly';
-  static const String appleYearly = 'com.novel.novelpop.yearly';
+  static const String appleWeekly = 'com.novel.pop.weekly';
+  static const String appleMonthly = 'com.novel.pop.monthly';
+  static const String appleYearly = 'com.novel.pop.yearly';
 
   // Google Play product IDs
   static const String googleWeekly = 'novelpop_weekly';

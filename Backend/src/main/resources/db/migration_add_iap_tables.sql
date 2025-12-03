@@ -28,7 +28,7 @@ UPDATE `subscription_products`
 SET
   `price` = 19.90,
   `duration_days` = 7,
-  `apple_product_id` = 'com.novel.novelpop.weekly',
+  `apple_product_id` = 'com.novel.pop.weekly',
   `google_product_id` = 'novelpop_weekly'
 WHERE `plan_type` = 'weekly';
 
@@ -44,7 +44,7 @@ SELECT
   19.90,
   'USD',
   'All',
-  'com.novel.novelpop.weekly',
+  'com.novel.pop.weekly',
   'novelpop_weekly',
   1,
   1,
@@ -57,7 +57,7 @@ UPDATE `subscription_products`
 SET
   `price` = 49.99,
   `duration_days` = 30,
-  `apple_product_id` = 'com.novel.novelpop.monthly',
+  `apple_product_id` = 'com.novel.pop.monthly',
   `google_product_id` = 'novelpop_monthly'
 WHERE `plan_type` = 'monthly';
 
@@ -66,7 +66,7 @@ UPDATE `subscription_products`
 SET
   `price` = 269.99,
   `duration_days` = 365,
-  `apple_product_id` = 'com.novel.novelpop.yearly',
+  `apple_product_id` = 'com.novel.pop.yearly',
   `google_product_id` = 'novelpop_yearly'
 WHERE `plan_type` = 'yearly';
 

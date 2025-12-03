@@ -37,12 +37,12 @@
 ### Apple 开发者账号
 - [ ] Apple Developer Program 会员（$99/年）
 - [ ] 应用已在 App Store Connect 中创建
-- [ ] Bundle ID: `com.novel.novelpop`
+- [ ] Bundle ID: `com.novel.pop`
 
 ### Google 开发者账号
 - [ ] Google Play Console 访问权限（$25 一次性费用）
 - [ ] 应用已在 Google Play Console 中创建
-- [ ] Package Name: `com.novel.novelpop`
+- [ ] Package Name: `com.novel.pop`
 
 ### 其他要求
 - [ ] HTTPS 域名（用于 Webhook）
@@ -65,7 +65,7 @@
 #### 产品 1: 周卡
 - **类型**: 自动续期订阅
 - **引用名称**: Weekly Subscription
-- **产品 ID**: `com.novel.novelpop.weekly`
+- **产品 ID**: `com.novel.pop.weekly`
 - **订阅群组**: NovelPop Subscriptions
 - **订阅时长**: 1周
 - **价格**: $19.99（选择价格等级）
@@ -73,7 +73,7 @@
 #### 产品 2: 月卡
 - **类型**: 自动续期订阅
 - **引用名称**: Monthly Subscription
-- **产品 ID**: `com.novel.novelpop.monthly`
+- **产品 ID**: `com.novel.pop.monthly`
 - **订阅群组**: NovelPop Subscriptions（同一群组）
 - **订阅时长**: 1个月
 - **价格**: $49.99
@@ -81,7 +81,7 @@
 #### 产品 3: 年卡
 - **类型**: 自动续期订阅
 - **引用名称**: Yearly Subscription
-- **产品 ID**: `com.novel.novelpop.yearly`
+- **产品 ID**: `com.novel.pop.yearly`
 - **订阅群组**: NovelPop Subscriptions（同一群组）
 - **订阅时长**: 1年
 - **价格**: $269.99
@@ -235,9 +235,9 @@ iap:
     production-url: https://buy.itunes.apple.com/verifyReceipt
     sandbox-url: https://sandbox.itunes.apple.com/verifyReceipt
     shared-secret: ${APPLE_SHARED_SECRET:your-apple-shared-secret}
-    bundle-id: com.novel.novelpop
+    bundle-id: com.novel.pop
   google:
-    package-name: com.novel.novelpop
+    package-name: com.novel.pop
     service-account-file: classpath:google-service-account.json
 ```
 
@@ -284,7 +284,7 @@ curl -X POST https://your-domain.com/api/webhook/apple \
     "notification_uuid": "test-uuid-123",
     "data": {
       "app_apple_id": 123456789,
-      "bundle_id": "com.novel.novelpop",
+      "bundle_id": "com.novel.pop",
       "environment": "Sandbox"
     }
   }'

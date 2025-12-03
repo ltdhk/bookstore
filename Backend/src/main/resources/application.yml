@@ -76,10 +76,10 @@ iap:
     production-url: https://buy.itunes.apple.com/verifyReceipt
     sandbox-url: https://sandbox.itunes.apple.com/verifyReceipt
     shared-secret: ${APPLE_SHARED_SECRET:your-apple-shared-secret}
-    bundle-id: com.novel.novelpop
+    bundle-id: com.novel.pop
   google:
-    package-name: com.novel.novelpop
-    service-account-file: ${GOOGLE_SERVICE_ACCOUNT_FILE:classpath:google-service-account.json}
+    package-name: com.novel.pop
+    service-account-file: ${GOOGLE_SERVICE_ACCOUNT_FILE:classpath:novelpopapp-cbbe32be7e85.json}
 
 logging:
   level:
