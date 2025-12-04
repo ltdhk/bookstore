@@ -130,13 +130,18 @@ public class AppleSignInServiceImpl implements AppleSignInService {
         // Use Apple user ID as a unique identifier
         user.setAppleUserId(claims.sub);
 
-        // Generate unique username from Apple user ID
-        String shortId = claims.sub.length() > 8 ? claims.sub.substring(0, 8) : claims.sub;
-        user.setUsername("apple_" + shortId + "_" + System.currentTimeMillis());
-
         // Set email from token or request
         String email = claims.email != null ? claims.email : request.getEmail();
         user.setEmail(email);
+
+        // Use email as username if available, otherwise generate from Apple user ID
+        if (email != null && !email.isEmpty()) {
+            user.setUsername(email);
+        } else {
+            // Generate unique username from Apple user ID
+            String shortId = claims.sub.length() > 8 ? claims.sub.substring(0, 8) : claims.sub;
+            user.setUsername("apple_" + shortId + "_" + System.currentTimeMillis());
+        }
 
         // Set password to a random value (user won't use password login)
         user.setPassword(UUID.randomUUID().toString());

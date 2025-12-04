@@ -91,58 +91,7 @@ class ProfileScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 40),
             // Login with Apple button
-            Consumer(
-              builder: (context, ref, child) {
-                return SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      Navigator.pop(context);
-
-                      if (!Platform.isIOS) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Apple登录仅支持iOS设备'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                        return;
-                      }
-
-                      await ref.read(authProvider.notifier).loginWithApple();
-
-                      if (!context.mounted) return;
-
-                      final authState = ref.read(authProvider);
-                      if (authState.hasError) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Apple登录失败: ${authState.error}'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFF6B9D),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16.0),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: Text(
-                      l10n.loginViaApple,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
+            _AppleLoginButton(l10n: l10n),
             const SizedBox(height: 16),
             // Login with Google button
             Consumer(
@@ -567,6 +516,103 @@ class ProfileScreen extends ConsumerWidget {
       ),
       trailing: const Icon(Icons.chevron_right, color: Colors.grey),
       onTap: onTap,
+    );
+  }
+}
+
+// Stateful widget for Apple login button with loading state
+class _AppleLoginButton extends ConsumerStatefulWidget {
+  final AppLocalizations l10n;
+
+  const _AppleLoginButton({required this.l10n});
+
+  @override
+  ConsumerState<_AppleLoginButton> createState() => _AppleLoginButtonState();
+}
+
+class _AppleLoginButtonState extends ConsumerState<_AppleLoginButton> {
+  bool _isLoading = false;
+
+  Future<void> _handleAppleLogin() async {
+    if (_isLoading) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Close the dialog first
+      if (mounted) {
+        Navigator.pop(context);
+      }
+
+      if (!Platform.isIOS) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Apple登录仅支持iOS设备'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      await ref.read(authProvider.notifier).loginWithApple();
+
+      if (!mounted) return;
+
+      final authState = ref.read(authProvider);
+      if (authState.hasError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Apple登录失败: ${authState.error}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: _isLoading ? null : _handleAppleLogin,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFFF6B9D),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 16.0),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+          elevation: 0,
+          disabledBackgroundColor: const Color(0xFFFF6B9D).withOpacity(0.6),
+        ),
+        child: _isLoading
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : Text(
+                widget.l10n.loginViaApple,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+      ),
     );
   }
 }

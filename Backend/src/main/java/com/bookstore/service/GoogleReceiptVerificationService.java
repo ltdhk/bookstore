@@ -4,6 +4,7 @@ import com.bookstore.dto.SubscriptionInfo;
 import com.bookstore.exception.ReceiptVerificationException;
 import com.google.api.services.androidpublisher.AndroidPublisher;
 import com.google.api.services.androidpublisher.model.SubscriptionPurchaseV2;
+import com.google.api.services.androidpublisher.model.SubscriptionPurchasesAcknowledgeRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,26 +30,27 @@ public class GoogleReceiptVerificationService {
 
     /**
      * Verify Google Play purchase
-     * @param productId Product ID
+     * @param productId Product ID (subscription ID, used for V1 acknowledge API)
      * @param purchaseToken Purchase token from client
      * @return Subscription information
      */
     public SubscriptionInfo verifyPurchase(String productId, String purchaseToken) {
         try {
-            log.info("Verifying Google Play purchase for product: {}", productId);
+            log.info("Verifying Google Play purchase for token: {}", purchaseToken);
 
-            // Get subscription purchase details from Google Play API
+            // Get subscription purchase details from Google Play API (V2)
             SubscriptionPurchaseV2 purchase = androidPublisher
                 .purchases()
                 .subscriptionsv2()
                 .get(packageName, purchaseToken)
                 .execute();
 
+            // Note: V2 API doesn't support acknowledge, must use V1 API if needed
             // Check if purchase needs acknowledgement
-            if (purchase.getAcknowledgementState() == null ||
-                purchase.getAcknowledgementState() != 1) {
-                log.info("Acknowledging purchase token: {}", purchaseToken);
-                acknowledgePurchase(purchaseToken);
+            String acknowledgementState = purchase.getAcknowledgementState();
+            if (acknowledgementState == null || !acknowledgementState.equals("ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED")) {
+                log.info("Acknowledging purchase token: {} with productId: {}", purchaseToken, productId);
+                acknowledgePurchaseV1(productId, purchaseToken);
             }
 
             return parseGoogleSubscription(purchase, productId);
@@ -60,17 +62,21 @@ public class GoogleReceiptVerificationService {
     }
 
     /**
-     * Acknowledge Google Play purchase
+     * Acknowledge Google Play purchase using V1 API
+     * (V2 API doesn't support acknowledge operation)
      */
-    private void acknowledgePurchase(String purchaseToken) {
+    private void acknowledgePurchaseV1(String subscriptionId, String purchaseToken) {
         try {
+            SubscriptionPurchasesAcknowledgeRequest acknowledgeRequest =
+                new SubscriptionPurchasesAcknowledgeRequest();
+
             androidPublisher
                 .purchases()
-                .subscriptionsv2()
-                .acknowledge(packageName, purchaseToken)
+                .subscriptions()
+                .acknowledge(packageName, subscriptionId, purchaseToken, acknowledgeRequest)
                 .execute();
 
-            log.info("Purchase acknowledged successfully");
+            log.info("Purchase acknowledged successfully using V1 API");
 
         } catch (Exception e) {
             log.error("Failed to acknowledge purchase", e);
@@ -79,54 +85,63 @@ public class GoogleReceiptVerificationService {
     }
 
     /**
-     * Parse Google subscription to SubscriptionInfo
+     * Parse Google subscription V2 to SubscriptionInfo
      */
     private SubscriptionInfo parseGoogleSubscription(SubscriptionPurchaseV2 purchase, String productId) {
-        // Get subscription state
-        Integer subscriptionState = purchase.getSubscriptionState();
-        boolean valid = subscriptionState != null && subscriptionState == 1; // SUBSCRIPTION_STATE_ACTIVE
+        // Get subscription state (SUBSCRIPTION_STATE_ACTIVE = valid)
+        String subscriptionState = purchase.getSubscriptionState();
+        boolean valid = "SUBSCRIPTION_STATE_ACTIVE".equals(subscriptionState);
 
         // Get line items (subscription details)
         if (purchase.getLineItems() == null || purchase.getLineItems().isEmpty()) {
             throw new ReceiptVerificationException("No line items found in Google purchase");
         }
 
-        SubscriptionPurchaseV2.LineItem lineItem = purchase.getLineItems().get(0);
+        // Get first line item
+        var lineItems = purchase.getLineItems();
+        var firstLineItem = lineItems.get(0);
 
-        // Parse timestamps
-        String startTimeMillis = lineItem.getExpiryTime();
-        LocalDateTime purchaseDate = LocalDateTime.now(); // Google doesn't provide exact purchase date in V2
+        // Parse timestamps from startTime (RFC 3339 format: "2024-01-01T00:00:00Z")
+        String startTime = purchase.getStartTime();
+        LocalDateTime purchaseDate = parseRFC3339ToLocalDateTime(startTime);
 
-        LocalDateTime expiryDate = null;
-        if (startTimeMillis != null) {
-            try {
-                long expiryMs = Long.parseLong(startTimeMillis.replaceAll("[^0-9]", ""));
-                expiryDate = LocalDateTime.ofInstant(
-                    Instant.ofEpochMilli(expiryMs),
-                    ZoneId.systemDefault()
-                );
-            } catch (Exception e) {
-                log.warn("Failed to parse expiry time: {}", startTimeMillis, e);
-            }
-        }
+        // Parse expiry time from line item
+        String expiryTime = firstLineItem.getExpiryTime();
+        LocalDateTime expiryDate = parseRFC3339ToLocalDateTime(expiryTime);
 
-        // Check auto-renewing
-        boolean autoRenewing = purchase.getAutoRenewing() != null && purchase.getAutoRenewing();
+        // Check auto-renewing from line item
+        Boolean autoRenewingFlag = firstLineItem.getAutoRenewingPlan() != null;
+        boolean autoRenewing = autoRenewingFlag != null && autoRenewingFlag;
 
-        // Use obfuscatedExternalAccountId as original transaction ID
-        String originalTransactionId = purchase.getObfuscatedExternalAccountId();
-        if (originalTransactionId == null || originalTransactionId.isEmpty()) {
-            originalTransactionId = purchase.getLatestOrderId();
-        }
+        // Use latestOrderId as transaction ID
+        String transactionId = purchase.getLatestOrderId();
+        String originalTransactionId = transactionId; // Use same ID
 
         return SubscriptionInfo.builder()
             .originalTransactionId(originalTransactionId)
-            .transactionId(purchase.getLatestOrderId())
+            .transactionId(transactionId)
             .productId(productId)
-            .purchaseDate(purchaseDate)
-            .expiryDate(expiryDate != null ? expiryDate : LocalDateTime.now().plusDays(7)) // Default to 7 days if parsing fails
+            .purchaseDate(purchaseDate != null ? purchaseDate : LocalDateTime.now())
+            .expiryDate(expiryDate != null ? expiryDate : LocalDateTime.now().plusDays(7))
             .autoRenewing(autoRenewing)
             .valid(valid)
             .build();
+    }
+
+    /**
+     * Parse RFC 3339 timestamp to LocalDateTime
+     */
+    private LocalDateTime parseRFC3339ToLocalDateTime(String timestamp) {
+        if (timestamp == null || timestamp.isEmpty()) {
+            return null;
+        }
+        try {
+            // Parse ISO 8601 / RFC 3339 format
+            return LocalDateTime.parse(timestamp.replace("Z", ""),
+                java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        } catch (Exception e) {
+            log.warn("Failed to parse timestamp: {}", timestamp, e);
+            return null;
+        }
     }
 }

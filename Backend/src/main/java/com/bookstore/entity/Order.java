@@ -54,6 +54,8 @@ public class Order {
 
     private String receiptData; // Apple receipt data
 
+    private LocalDateTime verifiedAt; // When receipt was verified
+
     // Source tracking fields
     private Long sourceBookId; // From which book
 

@@ -4,15 +4,13 @@ server:
     context-path: /
 
 spring:
-  profiles:
-    active: dev
   application:
     name: novelpop-backend
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://18.189.33.139:3307/novelpop_db?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
-    username: root
-    password: Ltd5030229! # PLEASE CHANGE THIS
+    url: ${SPRING_DATASOURCE_URL:${DB_URL}}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD}}
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: GMT+8
@@ -26,7 +24,8 @@ spring:
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    # Disable verbose logging in production
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
   mapper-locations: classpath:mapper/*.xml
   global-config:
     db-config:
@@ -40,28 +39,24 @@ jwt:
 
 aws:
   s3:
-    access-key: ${AWS_ACCESS_KEY:your-aws-access-key} # AWS Access Key (从环境变量获取)
-    secret-key: ${AWS_SECRET_KEY:your-aws-secret-key} # AWS Secret Key (从环境变量获取)
-    region: us-east-2 # AWS区域，例如: us-east-1, ap-southeast-1
-    bucket-name: novel-pop # 你的S3桶名称
+    access-key: ${AWS_ACCESS_KEY}
+    secret-key: ${AWS_SECRET_KEY}
+    region: us-east-2
+    bucket-name: novel-pop
 
 # Apple Sign In configuration
 apple:
   signin:
-    team-id: ${APPLE_TEAM_ID:your-team-id}
-    key-id: ${APPLE_KEY_ID:your-key-id}
+    team-id: ${APPLE_TEAM_ID}
+    key-id: ${APPLE_KEY_ID}
     client-id: ${APPLE_CLIENT_ID:com.novel.pop}
 
 # Google Sign In configuration
-# 将下面的占位符替换为你从 Google Cloud Console 获取的实际 Client ID
 google:
   signin:
-    # Web Client ID - 从 Google Cloud Console 获取
-    web-client-id: ${GOOGLE_WEB_CLIENT_ID:865872944830-hduu1vo9mjcinidf5oji7gucfnoq23ja.apps.googleusercontent.com}
-    # Android Client ID - 从 Google Cloud Console 获取
-    android-client-id: ${GOOGLE_ANDROID_CLIENT_ID:865872944830-7jd8dgvveoiub2hprs3bkbjg30aqe6j2.apps.googleusercontent.com}
-    # iOS Client ID - 从 Google Cloud Console 获取
-    ios-client-id: ${GOOGLE_IOS_CLIENT_ID:865872944830-btf095tp1p1rubbttcotnbuud7pv6pfp.apps.googleusercontent.com}
+    web-client-id: ${GOOGLE_WEB_CLIENT_ID}
+    android-client-id: ${GOOGLE_ANDROID_CLIENT_ID}
+    ios-client-id: ${GOOGLE_IOS_CLIENT_ID}
 
 # Book import configuration
 book-import:
@@ -75,7 +70,7 @@ iap:
   apple:
     production-url: https://buy.itunes.apple.com/verifyReceipt
     sandbox-url: https://sandbox.itunes.apple.com/verifyReceipt
-    shared-secret: ${APPLE_SHARED_SECRET:your-apple-shared-secret}
+    shared-secret: ${APPLE_SHARED_SECRET}
     bundle-id: com.novel.pop
   google:
     package-name: com.novel.pop
@@ -84,7 +79,7 @@ iap:
 logging:
   level:
     root: INFO
-    com.bookstore: DEBUG
+    com.bookstore: INFO
   file:
     name: logs/novelpop.log
   pattern:
@@ -95,6 +90,8 @@ logging:
       max-file-size: 10MB
       max-history: 30
       total-size-cap: 1GB
+
+# Spring Boot Actuator for health checks
 
 # Actuator endpoints configuration
 management:

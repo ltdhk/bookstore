@@ -1,7 +1,7 @@
 package com.bookstore.config;
 
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
-import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.androidpublisher.AndroidPublisher;
 import com.google.api.services.androidpublisher.AndroidPublisherScopes;
 import com.google.auth.http.HttpCredentialsAdapter;
@@ -46,7 +46,7 @@ public class GoogleApiConfig {
             // Build AndroidPublisher
             AndroidPublisher publisher = new AndroidPublisher.Builder(
                 GoogleNetHttpTransport.newTrustedTransport(),
-                JacksonFactory.getDefaultInstance(),
+                GsonFactory.getDefaultInstance(),
                 new HttpCredentialsAdapter(credentials)
             )
             .setApplicationName(packageName)

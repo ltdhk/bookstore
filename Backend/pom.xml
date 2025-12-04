@@ -8,11 +8,11 @@
         <version>3.2.3</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
-    <groupId>com.bookstore</groupId>
-    <artifactId>backend</artifactId>
+    <groupId>com.novel.pop</groupId>
+    <artifactId>novelpop-backend</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>backend</name>
-    <description>Backend for BookStore App</description>
+    <name>novelpop-backend</name>
+    <description>Backend for Novel Pop App</description>
     <properties>
         <java.version>17</java.version>
         <mybatis-plus.version>3.5.5</mybatis-plus.version>
@@ -30,6 +30,10 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
         <!-- Database -->
@@ -114,7 +118,7 @@
         <dependency>
             <groupId>com.google.apis</groupId>
             <artifactId>google-api-services-androidpublisher</artifactId>
-            <version>v3-rev20231201-2.0.0</version>
+            <version>v3-rev20241217-2.0.0</version>
         </dependency>
 
         <dependency>

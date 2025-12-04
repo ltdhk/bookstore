@@ -64,6 +64,12 @@ public class SubscriptionEvent {
     private Boolean processed;
 
     /**
+     * Processed timestamp
+     */
+    @TableField("processed_at")
+    private LocalDateTime processedAt;
+
+    /**
      * Created timestamp
      */
     @TableField(value = "created_at", fill = FieldFill.INSERT)

@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # Spring Boot Backend
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bookstore-backend
+    ports:
+      - "8090:8090"
+    environment:
+      # Spring Profile
+      SPRING_PROFILES_ACTIVE: docker
+
+      # Database Configuration
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/novelpop_db?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-rootpassword}
+
+      # AWS S3 Configuration
+      AWS_ACCESS_KEY: ${AWS_ACCESS_KEY}
+      AWS_SECRET_KEY: ${AWS_SECRET_KEY}
+
+      # Apple Sign In
+      APPLE_TEAM_ID: ${APPLE_TEAM_ID}
+      APPLE_KEY_ID: ${APPLE_KEY_ID}
+      APPLE_CLIENT_ID: ${APPLE_CLIENT_ID:-com.novel.pop}
+
+      # Google Sign In
+      GOOGLE_WEB_CLIENT_ID: ${GOOGLE_WEB_CLIENT_ID}
+      GOOGLE_ANDROID_CLIENT_ID: ${GOOGLE_ANDROID_CLIENT_ID}
+      GOOGLE_IOS_CLIENT_ID: ${GOOGLE_IOS_CLIENT_ID}
+
+      # Apple IAP
+      APPLE_SHARED_SECRET: ${APPLE_SHARED_SECRET}
+
+      # Google IAP - Use external file path
+      GOOGLE_SERVICE_ACCOUNT_FILE: ${GOOGLE_SERVICE_ACCOUNT_FILE:-/app/config/novelpopapp-cbbe32be7e85.json}
+
+      # JVM Options
+      JAVA_OPTS: "-Xms512m -Xmx1024m"
+    volumes:
+      # Mount logs directory
+      - ./logs:/app/logs
+      # Mount Google service account file from host
+      - ./novelpopapp-cbbe32be7e85.json:/app/config/novelpopapp-cbbe32be7e85.json:ro
+    networks:
+      - bookstore-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8090/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # MySQL Database (optional - if you want to run DB in container)
+  mysql:
+    image: mysql:8.0
+    container_name: bookstore-mysql
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: novelpop_db
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+      # Mount SQL migration scripts
+      - ./src/main/resources/db:/docker-entrypoint-initdb.d
+    networks:
+      - bookstore-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:-rootpassword}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+networks:
+  bookstore-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+    driver: local
