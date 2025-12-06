@@ -1,6 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:novelpop/src/features/home/data/book_api_service.dart';
 import 'package:novelpop/src/features/home/data/models/book_vo.dart';
+import 'package:novelpop/src/features/settings/data/locale_provider.dart';
 
 part 'book_provider.g.dart';
 
@@ -8,7 +9,17 @@ part 'book_provider.g.dart';
 @riverpod
 Future<Map<String, List<BookVO>>> homeBooks(Ref ref) async {
   final bookService = ref.watch(bookApiServiceProvider);
-  return await bookService.getHomeBooks();
+
+  // Get user's selected language from settings
+  String? language;
+  try {
+    final locale = await ref.read(localeControllerProvider.future);
+    language = locale.languageCode;
+  } catch (e) {
+    language = 'en'; // Fallback to English
+  }
+
+  return await bookService.getHomeBooks(language: language);
 }
 
 /// Provider for books by category

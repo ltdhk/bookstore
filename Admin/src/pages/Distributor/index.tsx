@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Input, Space, Modal, Form, message, Popconfirm, Tag, Statistic, Row, Col, Card, Select, Alert, InputNumber } from 'antd';
+import { Table, Button, Input, Space, Modal, Form, message, Popconfirm, Tag, Statistic, Row, Col, Select, Alert, InputNumber } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, BarChartOutlined } from '@ant-design/icons';
 import { getDistributors, createDistributor, updateDistributor, deleteDistributor, getDistributorStats } from '../../api/distributor';
 

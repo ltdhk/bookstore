@@ -138,5 +138,6 @@
   "unlockWithSVIP": "Assine SVIP para desbloquear",
   "chapterLoadError": "Falha ao carregar capítulo",
   "loading": "Carregando...",
-  "novelMaster": "Novel Next"
+  "novelMaster": "Novel Next",
+  "expiresOn": "Expira em"
 }

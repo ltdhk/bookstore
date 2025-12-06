@@ -413,4 +413,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get novelMaster => 'Novel Next';
+
+  @override
+  String get expiresOn => 'Expira em';
 }

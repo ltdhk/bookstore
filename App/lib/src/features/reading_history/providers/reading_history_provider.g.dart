@@ -36,7 +36,7 @@ final class ReadingHistoryProvider
   ReadingHistory create() => ReadingHistory();
 }
 
-String _$readingHistoryHash() => r'473d331ff2bc1ca0d54d50d9f20dc946856a51c9';
+String _$readingHistoryHash() => r'6d92a1e81b1b4da0d21912a6692d9b90b4beabd1';
 
 /// Provider for reading history items
 

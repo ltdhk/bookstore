@@ -1,5 +1,6 @@
 package com.bookstore.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
@@ -8,6 +9,7 @@ import lombok.Data;
  * https://developer.apple.com/documentation/appstoreservernotifications
  */
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class AppleServerNotification {
 
     /**
@@ -36,6 +38,7 @@ public class AppleServerNotification {
     private NotificationData data;
 
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class NotificationData {
         /**
          * App Apple ID

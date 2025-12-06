@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:novelpop/src/config/google_config.dart';
 import 'package:novelpop/src/features/auth/providers/auth_provider.dart';
 import 'package:novelpop/l10n/app_localizations.dart';
@@ -9,6 +10,10 @@ import 'package:novelpop/src/features/subscription/presentation/subscription_dia
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
+
+  String _formatDate(DateTime date) {
+    return DateFormat('yyyy-MM-dd').format(date);
+  }
 
   void _showSubscriptionDialog(BuildContext context, WidgetRef ref) {
     // Check if user is logged in
@@ -301,6 +306,16 @@ class ProfileScreen extends ConsumerWidget {
                                     color: isDark ? Colors.grey[400] : Colors.grey,
                                   ),
                             ),
+                            if (isLoggedIn && isSvip && user.subscriptionEndDate != null) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                '${l10n.expiresOn}: ${_formatDate(user.subscriptionEndDate!)}',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: isDark ? Colors.grey[500] : Colors.grey[600],
+                                      fontSize: 11,
+                                    ),
+                              ),
+                            ],
                           ],
                         ),
                       ),

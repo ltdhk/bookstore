@@ -12,7 +12,32 @@ class LocaleController extends _$LocaleController {
   Future<Locale> build() async {
     final prefs = await SharedPreferences.getInstance();
     final savedLocale = prefs.getString(_localeKey);
+
+    // If no saved locale, use system locale (if supported) or fallback to English
+    if (savedLocale == null) {
+      return _getDefaultLocale();
+    }
+
     return _parseLocale(savedLocale);
+  }
+
+  /// Get default locale based on system language
+  /// Returns system locale if supported, otherwise returns English
+  Locale _getDefaultLocale() {
+    final systemLocale = WidgetsBinding.instance.platformDispatcher.locale;
+    final systemLanguageCode = systemLocale.languageCode;
+
+    // Check if system language is in supported list
+    final isSupported = supportedLocales.any(
+      (locale) => locale.languageCode == systemLanguageCode
+    );
+
+    if (isSupported) {
+      return Locale(systemLanguageCode);
+    }
+
+    // Fallback to English if system language not supported
+    return const Locale('en');
   }
 
   Future<void> updateLocale(Locale locale) async {

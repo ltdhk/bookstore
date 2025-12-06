@@ -16,8 +16,6 @@ import {
 import {
   UploadOutlined,
   DownloadOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
 } from '@ant-design/icons';
 import type { UploadFile, UploadProps } from 'antd';
 import {
@@ -26,8 +24,6 @@ import {
   executeImport,
   type ImportDataDTO,
   type ImportResultDTO,
-  type BookImportDTO,
-  type ChapterImportDTO,
 } from '../../api/bookImport';
 
 const { Step } = Steps;
@@ -251,7 +247,7 @@ const BookImport: React.FC = () => {
                 pagination={{ pageSize: 10 }}
                 scroll={{ x: 1000 }}
                 size="small"
-                rowKey={(record, index) => index?.toString() || '0'}
+                rowKey={(_record, index) => index?.toString() || '0'}
               />
             </div>
 
@@ -263,7 +259,7 @@ const BookImport: React.FC = () => {
                 pagination={{ pageSize: 10 }}
                 scroll={{ x: 1000 }}
                 size="small"
-                rowKey={(record, index) => index?.toString() || '0'}
+                rowKey={(_record, index) => index?.toString() || '0'}
               />
             </div>
 

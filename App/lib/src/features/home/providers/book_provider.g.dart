@@ -52,7 +52,7 @@ final class HomeBooksProvider
   }
 }
 
-String _$homeBooksHash() => r'8952dbfebe539a745d3bb90ed8c7db4f63e59cbd';
+String _$homeBooksHash() => r'7e634abaa89824592441744fcf0da8055d8642e4';
 
 /// Provider for books by category
 

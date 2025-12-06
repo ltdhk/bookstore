@@ -138,5 +138,6 @@
   "unlockWithSVIP": "Berlangganan SVIP untuk membuka kunci",
   "chapterLoadError": "Gagal memuat bab",
   "loading": "Memuat...",
-  "novelMaster": "Novel Next"
+  "novelMaster": "Novel Next",
+  "expiresOn": "Berakhir pada"
 }

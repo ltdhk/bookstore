@@ -127,4 +127,29 @@ class AuthApiService {
       }
     }
   }
+
+  /// Get current user profile
+  Future<UserVO> getProfile() async {
+    try {
+      final response = await _dio.get('/api/v1/users/profile');
+
+      final result = ApiResult<UserVO>.fromJson(
+        response.data,
+        (json) => UserVO.fromJson(json as Map<String, dynamic>),
+      );
+
+      if (result.isSuccess && result.data != null) {
+        return result.data!;
+      } else {
+        throw Exception(result.message);
+      }
+    } on DioException catch (e) {
+      if (e.response != null) {
+        final result = ApiResult<UserVO>.fromJson(e.response!.data, null);
+        throw Exception(result.message);
+      } else {
+        throw Exception('Network error: ${e.message}');
+      }
+    }
+  }
 }

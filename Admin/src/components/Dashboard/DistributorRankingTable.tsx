@@ -67,7 +67,7 @@ const DistributorRankingTable: React.FC<DistributorRankingTableProps> = ({ data,
       dataIndex: 'distributorCommission',
       key: 'distributorCommission',
       align: 'right' as const,
-      render: (value: number, record: DistributorRevenueRanking) => (
+      render: (value: number, _record: DistributorRevenueRanking) => (
         <div>
           <div style={{ color: '#52c41a', fontWeight: 600, marginBottom: 4 }}>
             ¥{value.toFixed(2)}

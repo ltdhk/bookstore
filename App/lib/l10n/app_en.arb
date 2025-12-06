@@ -264,5 +264,6 @@
   "unlockWithSVIP": "Subscribe to SVIP to unlock",
   "chapterLoadError": "Failed to load chapter",
   "loading": "Loading...",
-  "novelMaster": "Novel Next"
+  "novelMaster": "Novel Next",
+  "expiresOn": "Expires on"
 }

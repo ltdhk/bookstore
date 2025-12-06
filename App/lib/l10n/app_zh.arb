@@ -138,5 +138,6 @@
   "unlockWithSVIP": "订阅 SVIP 以解锁",
   "chapterLoadError": "章节加载失败",
   "loading": "加载中...",
-  "novelMaster": "小说大师"
+  "novelMaster": "小说大师",
+  "expiresOn": "到期时间"
 }

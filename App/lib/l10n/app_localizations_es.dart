@@ -417,4 +417,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get novelMaster => 'Novel Next';
+
+  @override
+  String get expiresOn => 'Caduca el';
 }

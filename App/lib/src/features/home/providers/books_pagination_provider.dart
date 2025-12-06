@@ -1,7 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:novelpop/src/features/home/data/book_api_service.dart';
 import 'package:novelpop/src/features/home/data/models/book_vo.dart';
-import 'package:flutter/widgets.dart';
+import 'package:novelpop/src/features/settings/data/locale_provider.dart';
 
 part 'books_pagination_provider.g.dart';
 
@@ -57,11 +57,17 @@ class BooksPagination extends _$BooksPagination {
     );
   }
 
-  /// Get system language code
-  String _getSystemLanguage() {
-    // Get system locale and convert to language code (e.g., 'en', 'zh')
-    final locale = WidgetsBinding.instance.platformDispatcher.locale;
-    return locale.languageCode;
+  /// Get user's selected language from settings
+  /// Falls back to English if not available
+  Future<String> _getUserLanguage() async {
+    try {
+      // Get user's selected language from settings
+      final locale = await ref.read(localeControllerProvider.future);
+      return locale.languageCode;
+    } catch (e) {
+      // Fallback to English if error
+      return 'en';
+    }
   }
 
   /// Load next page
@@ -73,7 +79,7 @@ class BooksPagination extends _$BooksPagination {
     try {
       final bookService = ref.read(bookApiServiceProvider);
       final nextPage = state.currentPage + 1;
-      final language = _getSystemLanguage();
+      final language = await _getUserLanguage();
 
       final result = await bookService.getHomeBooks(
         page: nextPage,
@@ -131,7 +137,7 @@ class BooksPagination extends _$BooksPagination {
 
     // Load first page
     final bookService = ref.read(bookApiServiceProvider);
-    final language = _getSystemLanguage();
+    final language = await _getUserLanguage();
 
     try {
       state = state.copyWith(isLoading: true, error: null);

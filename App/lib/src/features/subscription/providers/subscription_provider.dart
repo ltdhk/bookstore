@@ -8,11 +8,16 @@ import 'dart:io' show Platform;
 part 'subscription_provider.g.dart';
 
 /// Provider for InAppPurchaseService
-@riverpod
+/// 使用 keepAlive: true 确保 IAP Service 不会被自动销毁
+/// 这对于处理后台交易和 App 生命周期变化至关重要
+@Riverpod(keepAlive: true)
 InAppPurchaseService inAppPurchaseService(Ref ref) {
-  return InAppPurchaseService(
+  final service = InAppPurchaseService(
     ref.watch(subscriptionApiServiceProvider),
   );
+  // 确保在 provider 销毁时清理资源
+  ref.onDispose(() => service.dispose());
+  return service;
 }
 
 /// Provider for subscription products list

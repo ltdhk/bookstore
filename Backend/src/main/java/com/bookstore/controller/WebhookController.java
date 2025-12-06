@@ -1,6 +1,7 @@
 package com.bookstore.controller;
 
 import com.bookstore.dto.AppleServerNotification;
+import com.bookstore.dto.AppleServerNotificationV2;
 import com.bookstore.dto.GooglePlayNotification;
 import com.bookstore.service.AppleWebhookService;
 import com.bookstore.service.GoogleWebhookService;
@@ -33,15 +34,41 @@ public class WebhookController {
      */
     @PostMapping("/apple")
     public Result<String> handleAppleNotification(
-            @RequestBody AppleServerNotification notification) {
+            @RequestBody String rawBody) {
 
-        log.info("Received Apple webhook notification: type={}, uuid={}",
-            notification.getNotificationType(),
-            notification.getNotificationUuid());
+        log.info("Received Apple webhook - Raw body length: {} bytes", rawBody.length());
+        log.debug("Raw body content: {}", rawBody);
 
         try {
-            appleWebhookService.handleNotification(notification);
-            return Result.success("Notification processed successfully");
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+
+            // Try to detect if this is V2 format (has signedPayload field)
+            if (rawBody.contains("\"signedPayload\"")) {
+                log.info("Detected Apple App Store Server Notification V2 format");
+
+                // Parse V2 format
+                AppleServerNotificationV2 notificationV2 = mapper.readValue(rawBody, AppleServerNotificationV2.class);
+
+                log.info("Received V2 notification with signedPayload (JWT length: {} chars)",
+                    notificationV2.getSignedPayload().length());
+
+                // Process V2 notification
+                appleWebhookService.handleV2Notification(notificationV2.getSignedPayload());
+
+                return Result.success("V2 notification processed successfully");
+            } else {
+                log.info("Detected Apple App Store Server Notification V1 format");
+
+                // Parse V1 format
+                AppleServerNotification notification = mapper.readValue(rawBody, AppleServerNotification.class);
+
+                log.info("Parsed V1 notification: type={}, uuid={}",
+                    notification.getNotificationType(),
+                    notification.getNotificationUuid());
+
+                appleWebhookService.handleNotification(notification);
+                return Result.success("V1 notification processed successfully");
+            }
         } catch (Exception e) {
             log.error("Failed to process Apple notification", e);
             // Still return success to prevent Apple from retrying

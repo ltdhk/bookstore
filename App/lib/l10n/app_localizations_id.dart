@@ -412,4 +412,7 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get novelMaster => 'Novel Next';
+
+  @override
+  String get expiresOn => 'Berakhir pada';
 }

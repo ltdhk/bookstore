@@ -11,12 +11,10 @@ Dio dio(Ref ref) {
     BaseOptions(
       // Use 10.0.2.2 for Android emulator to access host machine's localhost
       // Use your computer's IP address for physical devices
-      baseUrl: 'http://127.0.0.1:8090',
+      baseUrl: 'https://www.novelpop.net:4433',
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: {'Content-Type': 'application/json'},
     ),
   );
 

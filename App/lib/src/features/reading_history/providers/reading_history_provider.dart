@@ -26,6 +26,8 @@ class ReadingHistory extends _$ReadingHistory {
       author: author,
       coverUrl: coverUrl,
     );
+    // Check if still mounted after async operation
+    if (!ref.mounted) return;
     ref.invalidateSelf();
   }
 
@@ -33,6 +35,8 @@ class ReadingHistory extends _$ReadingHistory {
   Future<void> removeHistory(String bookId) async {
     final storage = ref.read(readingHistoryLocalStorageProvider).requireValue;
     await storage.removeHistory(bookId);
+    // Check if still mounted after async operation
+    if (!ref.mounted) return;
     ref.invalidateSelf();
   }
 
@@ -40,6 +44,8 @@ class ReadingHistory extends _$ReadingHistory {
   Future<void> clearAll() async {
     final storage = ref.read(readingHistoryLocalStorageProvider).requireValue;
     await storage.clearAll();
+    // Check if still mounted after async operation
+    if (!ref.mounted) return;
     ref.invalidateSelf();
   }
 }

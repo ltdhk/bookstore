@@ -9,11 +9,15 @@ part of 'subscription_provider.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// Provider for InAppPurchaseService
+/// 使用 keepAlive: true 确保 IAP Service 不会被自动销毁
+/// 这对于处理后台交易和 App 生命周期变化至关重要
 
 @ProviderFor(inAppPurchaseService)
 const inAppPurchaseServiceProvider = InAppPurchaseServiceProvider._();
 
 /// Provider for InAppPurchaseService
+/// 使用 keepAlive: true 确保 IAP Service 不会被自动销毁
+/// 这对于处理后台交易和 App 生命周期变化至关重要
 
 final class InAppPurchaseServiceProvider
     extends
@@ -24,13 +28,15 @@ final class InAppPurchaseServiceProvider
         >
     with $Provider<InAppPurchaseService> {
   /// Provider for InAppPurchaseService
+  /// 使用 keepAlive: true 确保 IAP Service 不会被自动销毁
+  /// 这对于处理后台交易和 App 生命周期变化至关重要
   const InAppPurchaseServiceProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
         name: r'inAppPurchaseServiceProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -59,7 +65,7 @@ final class InAppPurchaseServiceProvider
 }
 
 String _$inAppPurchaseServiceHash() =>
-    r'677921427f98dd038ceb7be17f348bb270d1895c';
+    r'7c56cafefcc0e2f2aa09fae045f41d03e558fc20';
 
 /// Provider for subscription products list
 

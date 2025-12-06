@@ -20,7 +20,6 @@ import {
   EditOutlined,
   DeleteOutlined,
   LoadingOutlined,
-  UploadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { RcFile } from 'antd/es/upload/interface';
@@ -477,7 +476,7 @@ const AdvertisementManagement: React.FC = () => {
                       placeholder="请选择目标书籍"
                       showSearch
                       filterOption={(input, option) =>
-                        (option?.children as string)
+                        (option?.children as unknown as string)
                           ?.toLowerCase()
                           .includes(input.toLowerCase())
                       }

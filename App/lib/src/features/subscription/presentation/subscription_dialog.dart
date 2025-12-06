@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:novelpop/src/features/auth/providers/auth_provider.dart';
 import 'package:novelpop/src/features/subscription/data/models/subscription_product.dart';
 import 'package:novelpop/src/features/subscription/providers/subscription_provider.dart';
 import 'package:novelpop/src/features/passcode/providers/passcode_provider.dart';
@@ -33,6 +34,7 @@ class _SubscriptionDialogState extends ConsumerState<SubscriptionDialog> {
   void initState() {
     super.initState();
     _initializeIAP();
+    _setupIAPCallbacks();
   }
 
   Future<void> _initializeIAP() async {
@@ -57,6 +59,111 @@ class _SubscriptionDialogState extends ConsumerState<SubscriptionDialog> {
     } catch (e) {
       debugPrint('Failed to initialize IAP: $e');
     }
+  }
+
+  void _setupIAPCallbacks() {
+    final iapService = ref.read(inAppPurchaseServiceProvider);
+
+    // 在 initState 时预先获取需要的 provider 引用
+    // 这样在回调执行时不需要再调用 ref.read()，避免 Widget 销毁后的问题
+    final passcodeContext = ref.read(activePasscodeContextProvider);
+    final passcodeApiService = ref.read(passcodeApiServiceProvider);
+    final authNotifier = ref.read(authProvider.notifier);
+    final sourceBookId = widget.sourceBookId;
+
+    iapService.onPurchaseSuccess = (purchase) async {
+      debugPrint('Purchase successful in dialog: ${purchase.productID}');
+
+      // Stop processing indicator first
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+      }
+
+      // Get passcode context for tracking (使用预先获取的引用)
+      final int? passcodeId = (passcodeContext != null &&
+              sourceBookId != null &&
+              passcodeContext.bookId == sourceBookId)
+          ? passcodeContext.passcodeId
+          : null;
+
+      // Track 'sub' action if subscription was via passcode
+      if (passcodeId != null) {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final userIdStr = prefs.getString('user_id');
+          final userId = userIdStr != null ? int.tryParse(userIdStr) : null;
+          await passcodeApiService.trackSubscription(passcodeId: passcodeId, userId: userId);
+          debugPrint('Passcode sub action tracked: $passcodeId, userId: $userId');
+        } catch (e) {
+          debugPrint('Failed to track passcode sub action: $e');
+        }
+      }
+
+      // Refresh user profile to update SVIP status (使用预先获取的引用)
+      try {
+        await authNotifier.refreshProfile();
+      } catch (e) {
+        debugPrint('Failed to refresh profile: $e');
+      }
+
+      if (mounted) {
+        Navigator.of(context).pop(true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Subscription successful! You are now a SVIP member.'),
+            backgroundColor: Color(0xFF4CAF50),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    };
+
+    iapService.onPurchaseError = (purchase, error) {
+      debugPrint('Purchase error in dialog: $error');
+
+      // Stop processing indicator
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+      }
+
+      // 只有在非取消错误时显示 SnackBar
+      if (mounted && !error.contains('canceled')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Subscription failed: $error'),
+            backgroundColor: Colors.red[400],
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    };
+
+    iapService.onPurchasePending = () {
+      debugPrint('Purchase pending in dialog...');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Purchase is pending... Please wait.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    };
+
+    iapService.onPurchaseCanceled = () {
+      debugPrint('Purchase canceled in dialog');
+      // Stop processing indicator
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+      }
+    };
   }
 
   @override
@@ -390,8 +497,8 @@ class _SubscriptionDialogState extends ConsumerState<SubscriptionDialog> {
                   const SizedBox(height: 2),
                   Text(
                     'Save ${savingsPercentage.toStringAsFixed(0)}%',
-                    style: TextStyle(
-                      color: const Color(0xFF4CAF50),
+                    style: const TextStyle(
+                      color: Color(0xFF4CAF50),
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
@@ -451,75 +558,8 @@ class _SubscriptionDialogState extends ConsumerState<SubscriptionDialog> {
           ? passcodeContext.distributorId
           : null;
 
-      // Setup IAP service callbacks
+      // Get IAP service (callbacks already set up in initState)
       final iapService = ref.read(inAppPurchaseServiceProvider);
-
-      iapService.onPurchaseSuccess = (purchase) async {
-        debugPrint('Purchase successful: ${purchase.productID}');
-
-        // Track 'sub' action if subscription was via passcode
-        if (passcodeId != null) {
-          try {
-            final prefs = await SharedPreferences.getInstance();
-            final userIdStr = prefs.getString('user_id');
-            final userId = userIdStr != null ? int.tryParse(userIdStr) : null;
-            final passcodeApiService = ref.read(passcodeApiServiceProvider);
-            await passcodeApiService.trackSubscription(passcodeId: passcodeId, userId: userId);
-            debugPrint('Passcode sub action tracked: $passcodeId, userId: $userId');
-          } catch (e) {
-            debugPrint('Failed to track passcode sub action: $e');
-          }
-        }
-
-        // Refresh subscription status
-        ref.invalidate(subscriptionStatusProvider);
-        ref.invalidate(subscriptionValidProvider);
-
-        if (context.mounted) {
-          Navigator.of(context).pop(true);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Subscription successful! You are now a SVIP member.'),
-              backgroundColor: Color(0xFF4CAF50),
-              duration: Duration(seconds: 3),
-            ),
-          );
-        }
-
-        setState(() {
-          _isProcessing = false;
-        });
-      };
-
-      iapService.onPurchaseError = (purchase, error) {
-        debugPrint('Purchase error: $error');
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Subscription failed: $error'),
-              backgroundColor: Colors.red[400],
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
-
-        setState(() {
-          _isProcessing = false;
-        });
-      };
-
-      iapService.onPurchasePending = () {
-        debugPrint('Purchase pending...');
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Purchase is pending... Please wait.'),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-      };
 
       // Initiate the purchase
       await iapService.purchaseProduct(

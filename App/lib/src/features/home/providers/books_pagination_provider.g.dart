@@ -61,7 +61,7 @@ final class BooksPaginationProvider
   }
 }
 
-String _$booksPaginationHash() => r'd76fa0ebaa3a730cd240d3318ff12982496cf97d';
+String _$booksPaginationHash() => r'e58f13b5784d1008361a45d5f1336a7054f384ce';
 
 /// Notifier for paginated books by category
 

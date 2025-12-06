@@ -42,13 +42,23 @@ public class AppleReceiptVerificationService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
-     * Verify Apple receipt
+     * Verify Apple receipt (backward compatible - uses last transaction)
      * @param receiptData Base64 encoded receipt data
      * @return Subscription information
      */
     public SubscriptionInfo verifyReceipt(String receiptData) {
+        return verifyReceipt(receiptData, null);
+    }
+
+    /**
+     * Verify Apple receipt and find transaction matching the specified productId
+     * @param receiptData Base64 encoded receipt data
+     * @param targetProductId Product ID to match (if null, returns last transaction)
+     * @return Subscription information
+     */
+    public SubscriptionInfo verifyReceipt(String receiptData, String targetProductId) {
         try {
-            log.info("Verifying Apple receipt");
+            log.info("Verifying Apple receipt, targetProductId: {}", targetProductId);
 
             // Try production environment first
             JsonNode response = postToApple(productionUrl, receiptData);
@@ -78,10 +88,36 @@ public class AppleReceiptVerificationService {
                 throw new ReceiptVerificationException("No subscription info found in receipt");
             }
 
-            // Get the latest subscription
-            JsonNode latestSubscription = latestReceiptInfo.get(latestReceiptInfo.size() - 1);
+            // Find the correct transaction based on productId
+            JsonNode targetTransaction = null;
 
-            return parseAppleSubscription(latestSubscription);
+            if (targetProductId != null) {
+                // 遍历所有交易，找到匹配 productId 的最新交易
+                long latestPurchaseDate = 0;
+                for (JsonNode txn : latestReceiptInfo) {
+                    String txnProductId = txn.get("product_id").asText();
+                    if (targetProductId.equals(txnProductId)) {
+                        long purchaseDateMs = txn.get("purchase_date_ms").asLong();
+                        if (purchaseDateMs > latestPurchaseDate) {
+                            latestPurchaseDate = purchaseDateMs;
+                            targetTransaction = txn;
+                        }
+                    }
+                }
+
+                if (targetTransaction != null) {
+                    log.info("找到匹配 productId {} 的交易: transactionId={}",
+                        targetProductId, targetTransaction.get("transaction_id").asText());
+                } else {
+                    log.warn("未找到匹配 productId {} 的交易，回退到最后一笔交易", targetProductId);
+                    targetTransaction = latestReceiptInfo.get(latestReceiptInfo.size() - 1);
+                }
+            } else {
+                // 没有指定 productId，使用最后一笔交易（向后兼容）
+                targetTransaction = latestReceiptInfo.get(latestReceiptInfo.size() - 1);
+            }
+
+            return parseAppleSubscription(targetTransaction);
 
         } catch (Exception e) {
             log.error("Failed to verify Apple receipt", e);
@@ -114,6 +150,7 @@ public class AppleReceiptVerificationService {
 
     /**
      * Parse Apple subscription JSON to SubscriptionInfo
+     * 支持 Auto-Renewable Subscription 和 Non-Renewing Subscription
      */
     private SubscriptionInfo parseAppleSubscription(JsonNode subscription) {
         String originalTransactionId = subscription.get("original_transaction_id").asText();
@@ -121,24 +158,31 @@ public class AppleReceiptVerificationService {
         String productId = subscription.get("product_id").asText();
 
         long purchaseDateMs = subscription.get("purchase_date_ms").asLong();
-        long expiresDateMs = subscription.get("expires_date_ms").asLong();
 
         LocalDateTime purchaseDate = LocalDateTime.ofInstant(
             Instant.ofEpochMilli(purchaseDateMs),
             ZoneId.systemDefault()
         );
 
-        LocalDateTime expiryDate = LocalDateTime.ofInstant(
-            Instant.ofEpochMilli(expiresDateMs),
-            ZoneId.systemDefault()
-        );
+        // Non-Renewing Subscription 没有 expires_date_ms 字段
+        // 需要根据产品类型来计算过期时间，或者设为 null 让调用方处理
+        LocalDateTime expiryDate = null;
+        JsonNode expiresDateNode = subscription.get("expires_date_ms");
+        if (expiresDateNode != null && !expiresDateNode.isNull()) {
+            long expiresDateMs = expiresDateNode.asLong();
+            expiryDate = LocalDateTime.ofInstant(
+                Instant.ofEpochMilli(expiresDateMs),
+                ZoneId.systemDefault()
+            );
+        }
 
-        // Check if auto-renewing
+        // Check if auto-renewing (Non-Renewing Subscription 没有这个字段)
         boolean autoRenewing = subscription.has("auto_renew_status") &&
             subscription.get("auto_renew_status").asText().equals("1");
 
-        // Check if valid (not expired)
-        boolean valid = LocalDateTime.now().isBefore(expiryDate);
+        // Check if valid
+        // 对于 Non-Renewing Subscription，expiryDate 为 null，默认视为有效（由调用方根据产品设置过期时间）
+        boolean valid = expiryDate == null || LocalDateTime.now().isBefore(expiryDate);
 
         return SubscriptionInfo.builder()
             .originalTransactionId(originalTransactionId)

@@ -107,6 +107,15 @@ class SubscriptionApiService {
       },
     );
 
-    return response.data['data'] as Map<String, dynamic>;
+    // Handle null or non-map responses
+    final data = response.data['data'];
+    if (data == null) {
+      throw Exception('Verification failed: ${response.data['message'] ?? 'No data returned from server'}');
+    }
+    if (data is! Map<String, dynamic>) {
+      throw Exception('Verification failed: Invalid response format');
+    }
+
+    return data;
   }
 }

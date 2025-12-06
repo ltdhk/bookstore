@@ -9,7 +9,6 @@ import {
 import { getAllTags, createTag, updateTag, deleteTag } from '../../api/tag';
 import { getCategories, createCategory, updateCategory, deleteCategory } from '../../api/category';
 import { getLanguages, createLanguage, updateLanguage, deleteLanguage } from '../../api/language';
-import type { Color } from 'antd/es/color-picker';
 
 const { TabPane } = Tabs;
 

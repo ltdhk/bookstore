@@ -2,6 +2,8 @@ package com.bookstore.vo;
 
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 @Data
 public class UserVO {
     private Long id;
@@ -12,4 +14,9 @@ public class UserVO {
     private Integer bonus;
     private Boolean isSvip;
     private String token;
+
+    // Subscription fields
+    private String subscriptionStatus;
+    private LocalDateTime subscriptionEndDate;
+    private String subscriptionPlanType;
 }

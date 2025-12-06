@@ -406,4 +406,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get novelMaster => '小说大师';
+
+  @override
+  String get expiresOn => '到期时间';
 }

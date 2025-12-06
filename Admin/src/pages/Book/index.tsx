@@ -16,9 +16,8 @@ import {
   InputNumber,
   Upload,
 } from 'antd';
-import { SearchOutlined, UploadOutlined, LoadingOutlined, PlusOutlined, KeyOutlined } from '@ant-design/icons';
-import type { UploadChangeParam } from 'antd/es/upload';
-import type { RcFile, UploadFile, UploadProps } from 'antd/es/upload/interface';
+import { SearchOutlined, LoadingOutlined, PlusOutlined, KeyOutlined } from '@ant-design/icons';
+import type { RcFile } from 'antd/es/upload/interface';
 import { useTranslation } from 'react-i18next';
 import { getBooks, createBook, updateBook, deleteBook } from '../../api/book';
 import { getCategories } from '../../api/category';
@@ -56,7 +55,7 @@ const BookManagement: React.FC = () => {
   const [currentBookId, setCurrentBookId] = useState<number | null>(null);
   const [chapters, setChapters] = useState<any[]>([]);
   const [editingChapter, setEditingChapter] = useState<any | null>(null);
-  const [selectedLanguage, setSelectedLanguage] = useState<string>('');
+  const [_selectedLanguage, setSelectedLanguage] = useState<string>('');
   const [uploadLoading, setUploadLoading] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [imageUrl, setImageUrl] = useState<string>('');

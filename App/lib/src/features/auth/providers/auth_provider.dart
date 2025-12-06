@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:novelpop/src/features/auth/data/apple_sign_in_service.dart';
@@ -96,6 +97,27 @@ class AuthNotifier extends _$AuthNotifier {
     await prefs.remove('avatar');
 
     state = const AsyncValue.data(null);
+  }
+
+  /// Refresh user profile from server
+  /// Call this after subscription purchase to update user's SVIP status
+  Future<void> refreshProfile() async {
+    // Only refresh if user is logged in
+    final currentUser = state.value;
+    if (currentUser == null) return;
+
+    try {
+      final authService = ref.read(authApiServiceProvider);
+      final updatedUser = await authService.getProfile();
+
+      // Update state with new user data, keeping the existing token
+      state = AsyncValue.data(updatedUser.copyWith(token: currentUser.token));
+      debugPrint('User profile refreshed successfully');
+    } catch (e) {
+      // Silently fail - don't disrupt user experience
+      // The profile will be refreshed on next app launch
+      debugPrint('Failed to refresh profile: $e');
+    }
   }
 
   Future<void> loginWithApple() async {

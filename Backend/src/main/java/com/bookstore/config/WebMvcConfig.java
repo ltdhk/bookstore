@@ -37,7 +37,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
                     "/api/subscription/products", // Allow public access to subscription products
                     "/api/advertisements/**",     // Allow public access to advertisements
                     "/api/v1/passcodes/search",   // Allow public access to passcode search
-                    "/api/v1/passcodes/track"     // Allow public access to passcode tracking
+                    "/api/v1/passcodes/track",    // Allow public access to passcode tracking
+                    "/api/webhook/**"             // Allow webhook notifications from Apple/Google
                 );
     }
 

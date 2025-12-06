@@ -7,10 +7,12 @@ import com.bookstore.dto.SubscriptionProductDTO;
 import com.bookstore.dto.SubscriptionStatusDTO;
 import com.bookstore.dto.SubscriptionVerifyRequest;
 import com.bookstore.entity.Order;
+import com.bookstore.entity.ProcessedTransaction;
 import com.bookstore.entity.SubscriptionEvent;
 import com.bookstore.entity.SubscriptionProduct;
 import com.bookstore.entity.User;
 import com.bookstore.repository.OrderRepository;
+import com.bookstore.repository.ProcessedTransactionRepository;
 import com.bookstore.repository.SubscriptionEventRepository;
 import com.bookstore.repository.SubscriptionProductRepository;
 import com.bookstore.repository.UserMapper;
@@ -40,6 +42,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
     private final SubscriptionProductRepository subscriptionProductRepository;
     private final OrderRepository orderRepository;
+    private final ProcessedTransactionRepository processedTransactionRepository;
     private final UserMapper userMapper;
     private final SubscriptionEventRepository subscriptionEventRepository;
     private final AppleReceiptVerificationService appleVerificationService;
@@ -198,11 +201,34 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             throw new RuntimeException("User not found");
         }
 
+        LocalDateTime currentEndDate = user.getSubscriptionEndDate();
+        LocalDateTime newEndDate = order.getSubscriptionEndDate();
+        LocalDateTime finalEndDate;
+
+        // 取两者中较晚的时间，避免用户损失已付费时长
+        if (currentEndDate != null && currentEndDate.isAfter(newEndDate)) {
+            finalEndDate = currentEndDate;
+            log.warn("用户 {} 已有更晚的订阅到期时间 {} (新订阅: {})，保持原时间不变",
+                     userId, currentEndDate, newEndDate);
+        } else if (currentEndDate != null && currentEndDate.isAfter(LocalDateTime.now())) {
+            // 新订阅时间更晚，但旧订阅还没过期
+            finalEndDate = newEndDate;
+            long remainingDays = java.time.temporal.ChronoUnit.DAYS.between(LocalDateTime.now(), currentEndDate);
+            log.info("用户 {} 原订阅剩余 {} 天 (到期: {})，更新为新到期时间: {}",
+                     userId, remainingDays, currentEndDate, newEndDate);
+        } else {
+            // 无旧订阅或旧订阅已过期
+            finalEndDate = newEndDate;
+            log.info("用户 {} 订阅更新为: {}", userId, newEndDate);
+        }
+
         user.setIsSvip(true);
         user.setSubscriptionStatus("active");
-        user.setSubscriptionEndDate(order.getSubscriptionEndDate());
+        user.setSubscriptionEndDate(finalEndDate);
         user.setSubscriptionPlanType(order.getSubscriptionPeriod());
         userMapper.updateById(user);
+
+        log.info("用户 {} 订阅状态已更新 - 最终到期时间: {}", userId, finalEndDate);
     }
 
     @Override
@@ -237,16 +263,41 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     @Override
     @Transactional
     public void processExpiredSubscriptions() {
+        log.info("开始批量处理过期订阅...");
+
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("subscription_status", "active");
         queryWrapper.lt("subscription_end_date", LocalDateTime.now());
 
         List<User> expiredUsers = userMapper.selectList(queryWrapper);
-        for (User user : expiredUsers) {
-            user.setSubscriptionStatus("expired");
-            user.setIsSvip(false);
-            userMapper.updateById(user);
+
+        if (expiredUsers.isEmpty()) {
+            log.info("没有发现过期的订阅用户");
+            return;
         }
+
+        log.info("发现 {} 个过期订阅用户，开始更新状态...", expiredUsers.size());
+
+        int successCount = 0;
+        int failCount = 0;
+
+        for (User user : expiredUsers) {
+            try {
+                log.debug("处理用户 ID: {}, 订阅结束时间: {}", user.getId(), user.getSubscriptionEndDate());
+
+                user.setSubscriptionStatus("expired");
+                user.setIsSvip(false);
+                userMapper.updateById(user);
+
+                successCount++;
+            } catch (Exception e) {
+                failCount++;
+                log.error("更新用户 {} 订阅状态失败", user.getId(), e);
+            }
+        }
+
+        log.info("过期订阅处理完成 - 成功: {}, 失败: {}, 总计: {}",
+            successCount, failCount, expiredUsers.size());
     }
 
     @Override
@@ -321,8 +372,10 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         try {
             if ("AppStore".equals(request.getPlatform())) {
                 log.debug("调用 Apple 收据验证服务");
-                subscriptionInfo = appleVerificationService.verifyReceipt(request.getReceiptData());
-                log.info("Apple 收据验证成功 - 原始交易ID: {}", subscriptionInfo.getOriginalTransactionId());
+                // 传递 productId 以便找到正确的交易（避免匹配到其他订阅产品的交易）
+                subscriptionInfo = appleVerificationService.verifyReceipt(request.getReceiptData(), request.getProductId());
+                log.info("Apple 收据验证成功 - 原始交易ID: {}, 产品ID: {}",
+                    subscriptionInfo.getOriginalTransactionId(), subscriptionInfo.getProductId());
             } else if ("GooglePay".equals(request.getPlatform())) {
                 log.debug("调用 Google Play 收据验证服务");
                 subscriptionInfo = googleVerificationService.verifyPurchase(
@@ -339,18 +392,45 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             throw new RuntimeException("Receipt verification failed: " + e.getMessage(), e);
         }
 
-        // 2. Check for duplicate purchase
+        // 2. Check for duplicate purchase using platform transaction ID
+        // Use platformTransactionId (unique per transaction) instead of originalTransactionId
+        // because originalTransactionId stays the same for:
+        // - Auto-renewable subscriptions in the same group (upgrades/downgrades)
+        // - Sometimes for related purchases
         String originalTransactionId = subscriptionInfo.getOriginalTransactionId();
-        log.info("步骤2: 检查重复购买 - 原始交易ID: {}", originalTransactionId);
-        QueryWrapper<Order> duplicateQuery = new QueryWrapper<>();
-        duplicateQuery.eq("original_transaction_id", originalTransactionId);
-        Order existingOrder = orderRepository.selectOne(duplicateQuery);
+        String platformTransactionId = subscriptionInfo.getTransactionId();
+        String productId = request.getProductId();
 
-        if (existingOrder != null) {
-            log.warn("检测到重复购买 - 订单已存在: {}, 返回已有订单", existingOrder.getOrderNo());
-            return existingOrder;
+        log.info("步骤2: 检查重复交易 - 原始交易ID: {}, 平台交易ID: {}, 产品ID: {}",
+            originalTransactionId, platformTransactionId, productId);
+
+        // Check if this exact transaction has been processed before
+        QueryWrapper<ProcessedTransaction> processedQuery = new QueryWrapper<>();
+        processedQuery.eq("platform_transaction_id", platformTransactionId);
+        ProcessedTransaction processedTxn = processedTransactionRepository.selectOne(processedQuery);
+
+        if (processedTxn != null) {
+            // This transaction was already processed
+            log.warn("检测到重复交易 - 平台交易ID: {} 已在 {} 处理过",
+                platformTransactionId, processedTxn.getProcessedAt());
+
+            // Find the original order for logging
+            String orderNo = "unknown";
+            if (processedTxn.getOrderId() != null) {
+                Order existingOrder = orderRepository.selectById(processedTxn.getOrderId());
+                if (existingOrder != null) {
+                    orderNo = existingOrder.getOrderNo();
+                }
+            }
+
+            log.info("重复交易已确认 - 原订单: {}", orderNo);
+
+            // Throw exception with specific message that frontend can recognize
+            // This tells frontend: "Purchase was already successful, just complete the transaction"
+            throw new RuntimeException("DUPLICATE_TRANSACTION:订单已存在,交易已成功处理,订单号:" + orderNo);
         }
-        log.info("未检测到重复购买，继续处理");
+
+        log.info("未检测到重复交易，继续处理");
 
         // 3. Get product information
         log.info("步骤3: 获取产品信息 - 产品ID: {}", request.getProductId());
@@ -374,8 +454,20 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         order.setProductId(request.getProductId());
         order.setOrderType("subscription");
         order.setSubscriptionPeriod(product.getPlanType());
-        order.setSubscriptionStartDate(subscriptionInfo.getPurchaseDate());
-        order.setSubscriptionEndDate(subscriptionInfo.getExpiryDate());
+
+        // 设置订阅开始时间
+        LocalDateTime startDate = subscriptionInfo.getPurchaseDate();
+        order.setSubscriptionStartDate(startDate);
+
+        // 设置订阅结束时间
+        // 对于 Non-Renewing Subscription，Apple 不返回 expires_date_ms，需要根据产品天数计算
+        LocalDateTime endDate = subscriptionInfo.getExpiryDate();
+        if (endDate == null && startDate != null && product.getDurationDays() != null) {
+            endDate = startDate.plusDays(product.getDurationDays());
+            log.info("Non-Renewing Subscription: 根据产品天数({})计算过期时间: {}",
+                product.getDurationDays(), endDate);
+        }
+        order.setSubscriptionEndDate(endDate);
         order.setIsAutoRenew(subscriptionInfo.isAutoRenewing());
         order.setOriginalTransactionId(originalTransactionId);
         order.setPlatformTransactionId(subscriptionInfo.getTransactionId());
@@ -402,6 +494,17 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         // Save order
         orderRepository.insert(order);
         log.info("订单创建成功 - 订单号: {}, 订单ID: {}, 金额: {}", orderNo, order.getId(), order.getAmount());
+
+        // Record this transaction as processed to prevent duplicate processing
+        ProcessedTransaction processedTransaction = new ProcessedTransaction();
+        processedTransaction.setPlatformTransactionId(platformTransactionId);
+        processedTransaction.setOriginalTransactionId(originalTransactionId);
+        processedTransaction.setOrderId(order.getId());
+        processedTransaction.setPlatform(request.getPlatform());
+        processedTransaction.setProductId(productId);
+        processedTransaction.setProcessedAt(LocalDateTime.now());
+        processedTransactionRepository.insert(processedTransaction);
+        log.info("已记录处理的交易 - 平台交易ID: {}, 订单ID: {}", platformTransactionId, order.getId());
 
         // 5. Update user subscription status
         log.info("步骤5: 更新用户订阅状态");

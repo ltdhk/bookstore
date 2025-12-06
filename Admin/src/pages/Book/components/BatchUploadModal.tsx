@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, Upload, Button, Alert, Space, Statistic, Card, message } from 'antd';
 import { FileZipOutlined, CheckCircleOutlined, CloseCircleOutlined, UploadOutlined } from '@ant-design/icons';
-import { uploadBatchCovers, BatchUploadResult } from '../../../api/coverImage';
+import { uploadBatchCovers, type BatchUploadResult } from '../../../api/coverImage';
 
 interface BatchUploadModalProps {
   visible: boolean;
