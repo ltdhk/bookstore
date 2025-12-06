@@ -1,0 +1,27 @@
+# 编译输出
+target/
+
+# 日志文件
+logs/
+*.log
+
+# 环境变量和敏感配置
+.env
+*.json
+!src/main/resources/db/*.json
+
+# Google 服务账号密钥
+*-cbbe32be7e85.json
+novelpopapp-*.json
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Maven
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
