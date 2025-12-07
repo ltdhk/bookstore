@@ -54,10 +54,10 @@ class AppLocalizationsId extends AppLocalizations {
   String get versionUpdate => 'Pembaruan Versi';
 
   @override
-  String get about => 'Tentang Novel Next';
+  String get about => 'Tentang Novel Pop';
 
   @override
-  String get rate => 'Beri Nilai Novel Next';
+  String get rate => 'Beri Nilai Novel Pop';
 
   @override
   String get followSystem => 'Ikuti Sistem';
@@ -411,7 +411,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get loading => 'Memuat...';
 
   @override
-  String get novelMaster => 'Novel Next';
+  String get novelMaster => 'Novel Pop';
 
   @override
   String get expiresOn => 'Berakhir pada';

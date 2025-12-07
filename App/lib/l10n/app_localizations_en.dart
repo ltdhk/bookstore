@@ -33,7 +33,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get female => 'Female';
 
   @override
-  String get searchHint => 'Search for novel next';
+  String get searchHint => 'Search for novel pop';
 
   @override
   String get settings => 'Setting';
@@ -54,10 +54,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get versionUpdate => 'Version Update';
 
   @override
-  String get about => 'About Novel Next';
+  String get about => 'About Novel Pop';
 
   @override
-  String get rate => 'Rate Novel Next';
+  String get rate => 'Rate Novel Pop';
 
   @override
   String get followSystem => 'Follow System';
@@ -411,7 +411,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loading => 'Loading...';
 
   @override
-  String get novelMaster => 'Novel Next';
+  String get novelMaster => 'Novel Pop';
 
   @override
   String get expiresOn => 'Expires on';

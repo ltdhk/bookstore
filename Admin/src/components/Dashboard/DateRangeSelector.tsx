@@ -59,7 +59,6 @@ const DateRangeSelector: React.FC<DateRangeSelectorProps> = ({ onChange }) => {
       showTime
       format="YYYY-MM-DD HH:mm:ss"
       onChange={handleChange}
-      style={{ marginBottom: 16 }}
     />
   );
 };

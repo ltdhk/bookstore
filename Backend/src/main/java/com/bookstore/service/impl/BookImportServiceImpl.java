@@ -10,6 +10,8 @@ import com.bookstore.repository.TagRepository;
 import com.bookstore.service.BookImportService;
 import com.bookstore.service.BookService;
 import com.bookstore.service.ChapterService;
+import com.bookstore.service.CoverImageService;
+import com.bookstore.dto.CoverImageDTO;
 import com.bookstore.util.ExcelParser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +34,7 @@ public class BookImportServiceImpl implements BookImportService {
     private final BookCategoryRepository categoryRepository;
     private final TagRepository tagRepository;
     private final BookImportConfig config;
+    private final CoverImageService coverImageService;
 
     @Override
     public ImportDataDTO previewImport(MultipartFile file) throws Exception {
@@ -247,6 +250,7 @@ public class BookImportServiceImpl implements BookImportService {
     @Transactional(rollbackFor = Exception.class)
     private ImportResultDTO batchSave(ImportDataDTO data, Boolean skipDuplicates) {
         List<Book> booksToSave = new ArrayList<>();
+        List<BookImportDTO> dtosToSave = new ArrayList<>();
         int skippedCount = 0;
 
         // Convert DTOs to entities
@@ -263,11 +267,46 @@ public class BookImportServiceImpl implements BookImportService {
 
             Book book = convertToBook(dto);
             booksToSave.add(book);
+            dtosToSave.add(dto);
+        }
+
+        // 统计需要分配封面的书籍数量（没有指定封面URL的书籍）
+        List<Integer> booksNeedingCoverIndices = new ArrayList<>();
+        for (int i = 0; i < dtosToSave.size(); i++) {
+            if (!StringUtils.hasText(dtosToSave.get(i).getCoverUrl())) {
+                booksNeedingCoverIndices.add(i);
+            }
+        }
+
+        // 获取随机未使用的封面
+        List<CoverImageDTO> randomCovers = new ArrayList<>();
+        List<Long> coverIdsToMark = new ArrayList<>();
+        if (!booksNeedingCoverIndices.isEmpty()) {
+            randomCovers = coverImageService.getRandomUnusedCovers(booksNeedingCoverIndices.size());
+            if (randomCovers.size() < booksNeedingCoverIndices.size()) {
+                log.warn("未使用封面数量不足: 需要 {}, 现有 {}, 部分书籍将没有封面",
+                        booksNeedingCoverIndices.size(), randomCovers.size());
+            }
+
+            // 为需要封面的书籍分配封面
+            for (int i = 0; i < Math.min(booksNeedingCoverIndices.size(), randomCovers.size()); i++) {
+                int bookIndex = booksNeedingCoverIndices.get(i);
+                CoverImageDTO cover = randomCovers.get(i);
+                booksToSave.get(bookIndex).setCoverUrl(cover.getFileUrl());
+                coverIdsToMark.add(cover.getId());
+                log.info("为书籍 '{}' 分配封面: {}", booksToSave.get(bookIndex).getTitle(), cover.getFileUrl());
+            }
         }
 
         // Batch save books
         if (!booksToSave.isEmpty()) {
             bookService.saveBatch(booksToSave, 1000);
+        }
+
+        // 批量标记封面为已使用
+        if (!coverIdsToMark.isEmpty()) {
+            coverImageService.batchMarkAsUsed(coverIdsToMark);
+            log.info("已将 {} 个封面标记为已使用", coverIdsToMark.size());
         }
 
         // Build book title to ID mapping

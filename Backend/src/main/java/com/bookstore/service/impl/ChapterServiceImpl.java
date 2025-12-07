@@ -2,6 +2,7 @@ package com.bookstore.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.bookstore.config.CacheConfig;
 import com.bookstore.entity.Chapter;
 import com.bookstore.repository.ChapterMapper;
 import com.bookstore.service.ChapterService;
@@ -9,6 +10,7 @@ import com.bookstore.service.SubscriptionService;
 import com.bookstore.vo.ChapterVO;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -78,6 +80,7 @@ public class ChapterServiceImpl extends ServiceImpl<ChapterMapper, Chapter> impl
     }
 
     @Override
+    @Cacheable(value = CacheConfig.CACHE_CHAPTER_CONTENT, key = "#id", condition = "#userId == null")
     public ChapterVO getChapterDetails(Long id, Long userId) {
         Chapter chapter = getById(id);
         if (chapter == null) {

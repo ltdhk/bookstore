@@ -16,8 +16,8 @@
   "autoUnlockChapter": "Buka kunci bab otomatis",
   "language": "Bahasa",
   "versionUpdate": "Pembaruan Versi",
-  "about": "Tentang Novel Next",
-  "rate": "Beri Nilai Novel Next",
+  "about": "Tentang Novel Pop",
+  "rate": "Beri Nilai Novel Pop",
   "followSystem": "Ikuti Sistem",
   "alwaysDark": "Selalu Mode Gelap",
   "alwaysLight": "Selalu Mode Terang",
@@ -138,6 +138,6 @@
   "unlockWithSVIP": "Berlangganan SVIP untuk membuka kunci",
   "chapterLoadError": "Gagal memuat bab",
   "loading": "Memuat...",
-  "novelMaster": "Novel Next",
+  "novelMaster": "Novel Pop",
   "expiresOn": "Berakhir pada"
 }

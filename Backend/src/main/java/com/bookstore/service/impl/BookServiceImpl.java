@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.bookstore.config.CacheConfig;
 import com.bookstore.dto.ReaderDataDTO;
 import com.bookstore.entity.Book;
 import com.bookstore.entity.Chapter;
@@ -15,6 +16,7 @@ import com.bookstore.vo.BookVO;
 import com.bookstore.vo.ChapterVO;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -33,6 +35,7 @@ public class BookServiceImpl extends ServiceImpl<BookMapper, Book> implements Bo
     private SubscriptionService subscriptionService;
 
     @Override
+    @Cacheable(value = CacheConfig.CACHE_HOME_BOOKS, key = "'home_' + #page + '_' + #pageSize + '_' + (#language ?: 'all')")
     public Map<String, List<BookVO>> getHomeBooks(Integer page, Integer pageSize, String language) {
         Map<String, List<BookVO>> result = new HashMap<>();
 
@@ -76,13 +79,14 @@ public class BookServiceImpl extends ServiceImpl<BookMapper, Book> implements Bo
 
 
     @Override
+    @Cacheable(value = CacheConfig.CACHE_BOOK_DETAILS, key = "#id")
     public BookVO getBookDetails(Long id) {
         Book book = getById(id);
         if (book == null) {
             throw new RuntimeException("Book not found");
         }
 
-        // Increment views count
+        // Increment views count (不影响缓存返回值)
         incrementViews(id);
 
         return convertToVO(book);
@@ -101,6 +105,7 @@ public class BookServiceImpl extends ServiceImpl<BookMapper, Book> implements Bo
     }
 
     @Override
+    @Cacheable(value = CacheConfig.CACHE_HOME_BOOKS, key = "'search_' + #keyword", condition = "#keyword != null && #keyword.length() >= 2")
     public List<BookVO> searchBooks(String keyword) {
         // Add limit to prevent returning too many results
         List<Book> books = list(new LambdaQueryWrapper<Book>()

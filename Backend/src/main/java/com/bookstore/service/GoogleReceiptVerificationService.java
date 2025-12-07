@@ -86,6 +86,12 @@ public class GoogleReceiptVerificationService {
 
     /**
      * Parse Google subscription V2 to SubscriptionInfo
+     *
+     * Google Play 订阅类型：
+     * - Auto-renewing (自动续期): getAutoRenewingPlan() != null，如 weekly
+     * - Prepaid (预付费): getPrepaidPlan() != null，如 monthly/yearly
+     *
+     * 预付费订阅不会自动续费，到期后用户需要手动重新购买
      */
     private SubscriptionInfo parseGoogleSubscription(SubscriptionPurchaseV2 purchase, String productId) {
         // Get subscription state (SUBSCRIPTION_STATE_ACTIVE = valid)
@@ -109,20 +115,34 @@ public class GoogleReceiptVerificationService {
         String expiryTime = firstLineItem.getExpiryTime();
         LocalDateTime expiryDate = parseRFC3339ToLocalDateTime(expiryTime);
 
-        // Check auto-renewing from line item
-        Boolean autoRenewingFlag = firstLineItem.getAutoRenewingPlan() != null;
-        boolean autoRenewing = autoRenewingFlag != null && autoRenewingFlag;
+        // 检测订阅类型：自动续期 vs 预付费
+        // - Auto-renewing: getAutoRenewingPlan() != null (weekly)
+        // - Prepaid: getPrepaidPlan() != null (monthly, yearly)
+        boolean isPrepaid = firstLineItem.getPrepaidPlan() != null;
+        boolean isAutoRenewing = firstLineItem.getAutoRenewingPlan() != null;
+
+        // 只有自动续期订阅才设置 autoRenewing = true
+        // 预付费订阅不会自动续费，到期后需要用户手动购买
+        boolean autoRenewing = isAutoRenewing && !isPrepaid;
+
+        log.info("Google 订阅类型检测 - productId: {}, isPrepaid: {}, isAutoRenewing: {}, 最终autoRenewing: {}",
+            productId, isPrepaid, isAutoRenewing, autoRenewing);
+        log.info("Google 时间信息 - startTime: {}, expiryTime: {}, purchaseDate: {}, expiryDate: {}",
+            startTime, expiryTime, purchaseDate, expiryDate);
 
         // Use latestOrderId as transaction ID
         String transactionId = purchase.getLatestOrderId();
         String originalTransactionId = transactionId; // Use same ID
 
+        // 重要：不要在这里设置默认的到期时间！
+        // 如果 expiryDate 为 null，应该让 SubscriptionServiceImpl 根据产品的 durationDays 计算
+        // 之前的 LocalDateTime.now().plusDays(7) 会导致预付费订阅（monthly/yearly）获得错误的到期时间
         return SubscriptionInfo.builder()
             .originalTransactionId(originalTransactionId)
             .transactionId(transactionId)
             .productId(productId)
             .purchaseDate(purchaseDate != null ? purchaseDate : LocalDateTime.now())
-            .expiryDate(expiryDate != null ? expiryDate : LocalDateTime.now().plusDays(7))
+            .expiryDate(expiryDate)  // 不设置默认值，让调用方根据产品类型处理
             .autoRenewing(autoRenewing)
             .valid(valid)
             .build();
@@ -130,18 +150,29 @@ public class GoogleReceiptVerificationService {
 
     /**
      * Parse RFC 3339 timestamp to LocalDateTime
+     * 支持以下格式：
+     * - 2024-01-01T00:00:00Z
+     * - 2024-01-01T00:00:00.000Z
+     * - 2024-01-01T00:00:00+08:00
      */
     private LocalDateTime parseRFC3339ToLocalDateTime(String timestamp) {
         if (timestamp == null || timestamp.isEmpty()) {
             return null;
         }
         try {
-            // Parse ISO 8601 / RFC 3339 format
-            return LocalDateTime.parse(timestamp.replace("Z", ""),
-                java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+            // 使用 Instant.parse 来处理各种 RFC 3339 格式（包括时区）
+            Instant instant = Instant.parse(timestamp);
+            return instant.atZone(ZoneId.systemDefault()).toLocalDateTime();
         } catch (Exception e) {
-            log.warn("Failed to parse timestamp: {}", timestamp, e);
-            return null;
+            log.warn("Failed to parse timestamp with Instant.parse: {}, trying alternative method", timestamp);
+            try {
+                // 备用方法：去掉 Z 后解析
+                return LocalDateTime.parse(timestamp.replace("Z", ""),
+                    java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+            } catch (Exception e2) {
+                log.error("Failed to parse timestamp: {}", timestamp, e2);
+                return null;
+            }
         }
     }
 }

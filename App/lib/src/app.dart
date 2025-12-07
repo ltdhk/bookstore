@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:novelpop/l10n/app_localizations.dart';
 import 'package:novelpop/src/app/app_theme.dart';
@@ -15,6 +16,20 @@ class MyApp extends ConsumerWidget {
 
     final themeMode = ref.watch(themeControllerProvider);
     final locale = ref.watch(localeControllerProvider);
+
+    // 根据主题模式确定实际的亮度
+    final platformBrightness = MediaQuery.platformBrightnessOf(context);
+    final effectiveThemeMode = themeMode.value ?? ThemeMode.system;
+    final isDark = effectiveThemeMode == ThemeMode.dark ||
+        (effectiveThemeMode == ThemeMode.system &&
+            platformBrightness == Brightness.dark);
+
+    // 根据主题动态设置状态栏样式
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+      statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+    ));
 
     return MaterialApp.router(
       routerConfig: goRouter,

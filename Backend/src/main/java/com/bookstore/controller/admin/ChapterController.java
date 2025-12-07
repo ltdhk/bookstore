@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.bookstore.common.Result;
 import com.bookstore.entity.Chapter;
 import com.bookstore.repository.ChapterMapper;
+import com.bookstore.service.CacheService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,6 +17,7 @@ import java.util.List;
 public class ChapterController {
 
     private final ChapterMapper chapterMapper;
+    private final CacheService cacheService;
 
     @GetMapping
     public Result<List<Chapter>> getChapters(@PathVariable Long bookId) {
@@ -54,6 +56,8 @@ public class ChapterController {
         }
 
         chapterMapper.insert(chapter);
+        // 新增章节后清除该书籍的章节缓存
+        cacheService.evictChapterCache(bookId);
         return Result.success(chapter);
     }
 
@@ -67,6 +71,9 @@ public class ChapterController {
         chapter.setId(id);
         chapter.setBookId(bookId);
         chapterMapper.updateById(chapter);
+        // 更新章节后清除相关缓存
+        cacheService.evictChapterCache(bookId);
+        cacheService.evictChapterContentCache(id);
         return Result.success(chapter);
     }
 
@@ -78,6 +85,9 @@ public class ChapterController {
         }
 
         chapterMapper.deleteById(id);
+        // 删除章节后清除相关缓存
+        cacheService.evictChapterCache(bookId);
+        cacheService.evictChapterContentCache(id);
         return Result.success("Deleted");
     }
 }

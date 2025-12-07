@@ -460,15 +460,51 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         order.setSubscriptionStartDate(startDate);
 
         // 设置订阅结束时间
-        // 对于 Non-Renewing Subscription，Apple 不返回 expires_date_ms，需要根据产品天数计算
+        // 订阅类型：
+        // - 自动续期 (weekly): Google/Apple 返回 expiryDate (下次续费时间)
+        // - 预付费 (monthly/yearly): 可能不返回 expiryDate，需要根据产品天数计算
         LocalDateTime endDate = subscriptionInfo.getExpiryDate();
-        if (endDate == null && startDate != null && product.getDurationDays() != null) {
-            endDate = startDate.plusDays(product.getDurationDays());
-            log.info("Non-Renewing Subscription: 根据产品天数({})计算过期时间: {}",
-                product.getDurationDays(), endDate);
+        boolean isAutoRenewing = subscriptionInfo.isAutoRenewing();
+
+        log.info("原始订阅信息 - expiryDate: {}, isAutoRenewing: {}, startDate: {}",
+            endDate, isAutoRenewing, startDate);
+
+        // 预付费订阅处理：如果没有 expiryDate，或者是预付费订阅，根据产品天数计算
+        if (!isAutoRenewing && product.getDurationDays() != null) {
+            // 预付费订阅：始终使用产品的 durationDays 计算到期时间
+            LocalDateTime calculatedEndDate = (startDate != null ? startDate : LocalDateTime.now())
+                .plusDays(product.getDurationDays());
+
+            if (endDate == null) {
+                endDate = calculatedEndDate;
+                log.info("预付费订阅: 平台未返回到期时间，根据产品天数({})计算: {} (产品: {})",
+                    product.getDurationDays(), endDate, product.getPlanType());
+            } else {
+                // 如果平台返回了到期时间，验证是否合理
+                log.info("预付费订阅: 平台返回到期时间: {}, 计算的到期时间: {} (产品: {})",
+                    endDate, calculatedEndDate, product.getPlanType());
+            }
+        } else if (isAutoRenewing) {
+            // 自动续期订阅：使用平台返回的到期时间
+            if (endDate == null) {
+                // 如果自动续期订阅也没有返回到期时间，使用产品天数作为备用
+                if (startDate != null && product.getDurationDays() != null) {
+                    endDate = startDate.plusDays(product.getDurationDays());
+                    log.warn("自动续期订阅: 平台未返回到期时间（异常），使用产品天数({})计算: {} (产品: {})",
+                        product.getDurationDays(), endDate, product.getPlanType());
+                } else {
+                    log.error("自动续期订阅: 无法确定到期时间，startDate: {}, durationDays: {}",
+                        startDate, product.getDurationDays());
+                }
+            } else {
+                log.info("自动续期订阅: 使用平台返回的到期时间: {} (产品: {})",
+                    endDate, product.getPlanType());
+            }
         }
+
         order.setSubscriptionEndDate(endDate);
-        order.setIsAutoRenew(subscriptionInfo.isAutoRenewing());
+        order.setIsAutoRenew(isAutoRenewing);
+        log.info("最终订阅类型: {}, 到期时间: {}", isAutoRenewing ? "自动续期" : "预付费", endDate);
         order.setOriginalTransactionId(originalTransactionId);
         order.setPlatformTransactionId(subscriptionInfo.getTransactionId());
 

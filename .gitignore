@@ -1,0 +1,77 @@
+# Java
+*.class
+*.jar
+*.war
+*.ear
+target/
+*.log
+
+# Maven
+.mvn/
+mvnw
+mvnw.cmd
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+
+# Android
+*.keystore
+local.properties
+.gradle/
+.android/
+
+# iOS
+Pods/
+*.xcworkspace
+!default.xcworkspace
+xcuserdata/
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+
+# System files
+.DS_Store
+Thumbs.db
+nul
+
+# Credentials and sensitive files
+*credentials*.json
+*credentials*.csv
+*.pem
+token.json
+*accessKeys*.csv
+client_secret_*.json
+*-service-account*.json
+novelpopapp-*.json
+
+# Logs
+logs/
+*.log
+
+# History
+.history/
+
+# Compiled output
+compile_output.txt
+
+key/

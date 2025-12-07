@@ -51,7 +51,13 @@ const UserManagement: React.FC = () => {
     { title: '昵称', dataIndex: 'nickname', key: 'nickname', width: 120 },
     { title: '邮箱', dataIndex: 'email', key: 'email', width: 200 },
     { title: '手机号', dataIndex: 'phone', key: 'phone', width: 130 },
-    { title: '金币', dataIndex: 'coins', key: 'coins', width: 100 },
+    {
+      title: '订阅到期时间',
+      dataIndex: 'subscriptionEndDate',
+      key: 'subscriptionEndDate',
+      width: 170,
+      render: (date: string) => date ? new Date(date).toLocaleString('zh-CN') : '-',
+    },
     {
       title: 'SVIP',
       dataIndex: 'isSvip',

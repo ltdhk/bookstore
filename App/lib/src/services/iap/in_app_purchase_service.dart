@@ -2,7 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_android/in_app_purchase_android.dart';
+import 'package:in_app_purchase_android/billing_client_wrappers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:novelpop/src/features/subscription/data/subscription_api_service.dart';
 
@@ -160,21 +163,141 @@ class InAppPurchaseService {
 
   /// Query products from store
   Future<List<ProductDetails>> queryProducts(Set<String> productIds) async {
+    debugPrint('[IAP] ========================================');
+    debugPrint('[IAP] 开始查询产品');
+    debugPrint('[IAP] ========================================');
+    debugPrint('[IAP] 平台: ${Platform.isAndroid ? "Android (Google Play)" : "iOS (App Store)"}');
+    debugPrint('[IAP] 请求的产品IDs: $productIds');
+    debugPrint('[IAP] 产品ID数量: ${productIds.length}');
+
     try {
+      // 先检查 IAP 是否可用
+      final isAvailable = await _iap.isAvailable();
+      debugPrint('[IAP] IAP 服务可用: $isAvailable');
+
+      if (!isAvailable) {
+        debugPrint('[IAP] ❌ IAP 服务不可用!');
+        debugPrint('[IAP] 请检查:');
+        debugPrint('[IAP]   1. 设备是否安装了 Google Play Store');
+        debugPrint('[IAP]   2. Google Play Store 是否已登录账号');
+        debugPrint('[IAP]   3. 网络连接是否正常');
+        throw Exception('IAP is not available on this device');
+      }
+
+      // Android 特定诊断
+      if (Platform.isAndroid) {
+        await _printAndroidDiagnostics();
+      }
+
+      debugPrint('[IAP] 正在调用 queryProductDetails...');
+      final stopwatch = Stopwatch()..start();
       final response = await _iap.queryProductDetails(productIds);
+      stopwatch.stop();
+      debugPrint('[IAP] queryProductDetails 耗时: ${stopwatch.elapsedMilliseconds}ms');
+
+      debugPrint('[IAP] ----------------------------------------');
+      debugPrint('[IAP] 查询结果:');
+      debugPrint('[IAP]   找到的产品数量: ${response.productDetails.length}');
+      debugPrint('[IAP]   未找到的产品IDs: ${response.notFoundIDs}');
+      debugPrint('[IAP]   错误: ${response.error?.message ?? "无"}');
+      if (response.error != null) {
+        debugPrint('[IAP]   错误代码: ${response.error?.code}');
+        debugPrint('[IAP]   错误来源: ${response.error?.source}');
+        debugPrint('[IAP]   错误详情: ${response.error?.details}');
+      }
+      debugPrint('[IAP] ----------------------------------------');
+
+      // 打印找到的产品详情
+      if (response.productDetails.isNotEmpty) {
+        debugPrint('[IAP] 找到的产品详情:');
+        for (var product in response.productDetails) {
+          debugPrint('[IAP]   ✅ ID: ${product.id}');
+          debugPrint('[IAP]      标题: ${product.title}');
+          debugPrint('[IAP]      描述: ${product.description}');
+          debugPrint('[IAP]      价格: ${product.price}');
+          debugPrint('[IAP]      原始价格: ${product.rawPrice}');
+          debugPrint('[IAP]      货币代码: ${product.currencyCode}');
+
+          // Android: 打印订阅详情
+          if (Platform.isAndroid && product is GooglePlayProductDetails) {
+            final wrapper = product.productDetails;
+            debugPrint('[IAP]      [Android] 产品类型: ${wrapper.productType}');
+            final offers = wrapper.subscriptionOfferDetails;
+            if (offers != null && offers.isNotEmpty) {
+              debugPrint('[IAP]      [Android] 订阅优惠数量: ${offers.length}');
+              for (var offer in offers) {
+                debugPrint('[IAP]        - BasePlanId: ${offer.basePlanId}');
+                debugPrint('[IAP]          OfferId: ${offer.offerId ?? "无"}');
+                final token = offer.offerIdToken;
+                debugPrint('[IAP]          OfferToken: ${token.length > 20 ? token.substring(0, 20) : token}...');
+              }
+            }
+          }
+        }
+      } else {
+        debugPrint('[IAP] ⚠️ 没有找到任何产品!');
+      }
+
+      // 如果有未找到的产品，打印详细提示
+      if (response.notFoundIDs.isNotEmpty) {
+        debugPrint('[IAP] ⚠️ 以下产品未找到: ${response.notFoundIDs}');
+        debugPrint('[IAP] ============ 诊断建议 ============');
+        debugPrint('[IAP] 1. 检查 Google Play Console:');
+        debugPrint('[IAP]    - 产品ID是否完全匹配（区分大小写）');
+        debugPrint('[IAP]    - 订阅状态是否为 Active');
+        debugPrint('[IAP]    - 是否有至少一个 Active 的 Base Plan');
+        debugPrint('[IAP]    - Base Plan 是否已设置价格');
+        debugPrint('[IAP] 2. 检查 App 发布状态:');
+        debugPrint('[IAP]    - App 必须发布到测试轨道（内部测试/封闭测试/开放测试）');
+        debugPrint('[IAP]    - 发布后可能需要等待几小时生效');
+        debugPrint('[IAP] 3. 检查测试账号:');
+        debugPrint('[IAP]    - 设备上的 Google 账号必须添加到 License Testing');
+        debugPrint('[IAP] 4. 检查签名:');
+        debugPrint('[IAP]    - 测试 APK 必须使用 release 签名');
+        debugPrint('[IAP]    - 签名必须与 Play Console 中的签名匹配');
+        debugPrint('[IAP] =====================================');
+      }
 
       if (response.error != null) {
-        throw Exception('Failed to query products: ${response.error}');
+        debugPrint('[IAP] ❌ 查询出错!');
+        throw Exception('Failed to query products: ${response.error?.message}');
       }
 
-      if (response.notFoundIDs.isNotEmpty) {
-        debugPrint('Products not found: ${response.notFoundIDs}');
-      }
+      debugPrint('[IAP] ========================================');
+      debugPrint('[IAP] 查询产品完成');
+      debugPrint('[IAP] ========================================');
 
       return response.productDetails;
-    } catch (e) {
-      debugPrint('Failed to query products: $e');
+    } catch (e, stackTrace) {
+      debugPrint('[IAP] ❌ 查询产品异常: $e');
+      debugPrint('[IAP] 堆栈: $stackTrace');
       rethrow;
+    }
+  }
+
+  /// Android 特定诊断信息
+  Future<void> _printAndroidDiagnostics() async {
+    debugPrint('[IAP] -------- Android 诊断信息 --------');
+    try {
+      final InAppPurchaseAndroidPlatformAddition androidAddition =
+          _iap.getPlatformAddition<InAppPurchaseAndroidPlatformAddition>();
+
+      // 检查是否支持订阅功能
+      final supportsSubscriptions =
+          await androidAddition.isFeatureSupported(BillingClientFeature.subscriptions);
+      debugPrint('[IAP] 支持订阅: $supportsSubscriptions');
+
+      // 获取用户所在国家/地区
+      try {
+        final countryCode = await _iap.countryCode();
+        debugPrint('[IAP] 用户国家/地区: $countryCode');
+      } catch (e) {
+        debugPrint('[IAP] 获取国家/地区失败: $e');
+      }
+
+      debugPrint('[IAP] ------------------------------------');
+    } catch (e) {
+      debugPrint('[IAP] Android 诊断失败: $e');
     }
   }
 

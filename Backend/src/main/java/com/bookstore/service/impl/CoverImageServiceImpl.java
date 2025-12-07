@@ -325,6 +325,56 @@ public class CoverImageServiceImpl implements CoverImageService {
     }
 
     /**
+     * 随机获取指定数量的未使用封面
+     */
+    @Override
+    public List<CoverImageDTO> getRandomUnusedCovers(int count) {
+        if (count <= 0) {
+            return new ArrayList<>();
+        }
+
+        // 查询所有未使用的封面
+        LambdaQueryWrapper<CoverImage> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CoverImage::getIsUsed, false);
+
+        List<CoverImage> allUnused = coverImageMapper.selectList(wrapper);
+
+        // 如果未使用的封面数量不足，返回空列表
+        if (allUnused.size() < count) {
+            log.warn("未使用的封面数量不足: 需要 {}, 现有 {}", count, allUnused.size());
+            return new ArrayList<>();
+        }
+
+        // 随机打乱并取前 count 个
+        java.util.Collections.shuffle(allUnused);
+        List<CoverImage> selected = allUnused.subList(0, count);
+
+        return selected.stream()
+                .map(this::convertToDTO)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    /**
+     * 批量标记封面为已使用
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void batchMarkAsUsed(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
+
+        for (Long id : ids) {
+            CoverImage coverImage = coverImageMapper.selectById(id);
+            if (coverImage != null) {
+                coverImage.setIsUsed(true);
+                coverImageMapper.updateById(coverImage);
+            }
+        }
+        log.info("批量标记 {} 个封面为已使用", ids.size());
+    }
+
+    /**
      * 上传单个图片文件（用于批量上传）
      */
     private CoverImageDTO uploadSingleImageFile(File file, String batchId) throws Exception {

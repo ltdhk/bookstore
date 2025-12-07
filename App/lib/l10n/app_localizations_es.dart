@@ -54,10 +54,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get versionUpdate => 'Actualización de Versión';
 
   @override
-  String get about => 'Acerca de Novel Next';
+  String get about => 'Acerca de Novel Pop';
 
   @override
-  String get rate => 'Calificar Novel Next';
+  String get rate => 'Calificar Novel Pop';
 
   @override
   String get followSystem => 'Seguir Sistema';
@@ -416,7 +416,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get loading => 'Cargando...';
 
   @override
-  String get novelMaster => 'Novel Next';
+  String get novelMaster => 'Novel Pop';
 
   @override
   String get expiresOn => 'Caduca el';

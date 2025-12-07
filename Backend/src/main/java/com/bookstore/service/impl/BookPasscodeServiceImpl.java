@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
+import java.util.Random;
 
 @Service
 @RequiredArgsConstructor
@@ -22,12 +22,24 @@ public class BookPasscodeServiceImpl extends ServiceImpl<BookPasscodeRepository,
 
     @Override
     public String generatePasscode() {
-        // Generate a passcode starting with "KL" followed by 8 random characters
+        // Generate a passcode starting with "KL" followed by 4 random digits (0000-9999)
         String passcode;
+        Random random = new Random();
+        int maxAttempts = 10000; // Prevent infinite loop
+        int attempts = 0;
+
         do {
-            String randomPart = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+            // Generate 4-digit number with leading zeros (0000-9999)
+            int randomNum = random.nextInt(10000);
+            String randomPart = String.format("%04d", randomNum);
             passcode = "KL" + randomPart;
+            attempts++;
+
+            if (attempts >= maxAttempts) {
+                throw new RuntimeException("无法生成唯一的口令，所有可用的口令已被使用");
+            }
         } while (passcodeExists(passcode));
+
         return passcode;
     }
 

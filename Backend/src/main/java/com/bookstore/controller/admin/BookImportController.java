@@ -11,6 +11,7 @@ import com.bookstore.entity.Tag;
 import com.bookstore.repository.BookCategoryRepository;
 import com.bookstore.repository.TagRepository;
 import com.bookstore.service.BookImportService;
+import com.bookstore.service.CacheService;
 import com.bookstore.common.Result;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,7 @@ public class BookImportController {
     private final BookImportService importService;
     private final BookCategoryRepository categoryRepository;
     private final TagRepository tagRepository;
+    private final CacheService cacheService;
 
     @GetMapping("/template")
     public void downloadTemplate(HttpServletResponse response) throws IOException {
@@ -104,6 +106,8 @@ public class BookImportController {
         try {
             ImportResultDTO result = importService.executeImport(file, skipDuplicates);
             if (result.getSuccess()) {
+                // 导入成功后清除所有书籍相关缓存
+                cacheService.evictAllBookCaches();
                 return Result.success(result);
             } else {
                 // Return error with result data included

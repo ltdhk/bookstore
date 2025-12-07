@@ -54,10 +54,10 @@ class AppLocalizationsPt extends AppLocalizations {
   String get versionUpdate => 'Atualização de Versão';
 
   @override
-  String get about => 'Sobre Novel Next';
+  String get about => 'Sobre Novel Pop';
 
   @override
-  String get rate => 'Avaliar Novel Next';
+  String get rate => 'Avaliar Novel Pop';
 
   @override
   String get followSystem => 'Seguir Sistema';
@@ -412,7 +412,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get loading => 'Carregando...';
 
   @override
-  String get novelMaster => 'Novel Next';
+  String get novelMaster => 'Novel Pop';
 
   @override
   String get expiresOn => 'Expira em';

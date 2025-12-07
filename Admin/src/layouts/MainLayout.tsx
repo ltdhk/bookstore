@@ -165,7 +165,7 @@ const MainLayout: React.FC = () => {
     <Layout style={{ minHeight: '100vh' }}>
       <Sider trigger={null} collapsible collapsed={collapsed} theme="light">
         <div className="logo" style={{ height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 'bold', color: '#1890ff' }}>
-          {collapsed ? 'NB' : 'Novel Next'}
+          {collapsed ? 'Novel' : 'Novel Admin'}
         </div>
         <Menu
           theme="light"

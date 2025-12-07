@@ -4,10 +4,11 @@ import react from '@vitejs/plugin-react'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  base: '/admin/',
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'https://www.novelpop.net:4433',
         changeOrigin: true,
         // rewrite: (path) => path.replace(/^\/api/, ''), // Don't rewrite if backend expects /api
       },

@@ -56,7 +56,7 @@ const Login: React.FC = () => {
       <div className="login-left">
         <div className="login-header">
           <div className="logo-icon">📘</div>
-          <span className="logo-text">NovelNext Admin</span>
+          <span className="logo-text">NovelPop Admin</span>
           <Select
             value={i18n.language}
             onChange={changeLanguage}

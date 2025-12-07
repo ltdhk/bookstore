@@ -165,19 +165,27 @@ class AuthNotifier extends _$AuthNotifier {
     required String webClientId,
     String? iosClientId,
   }) async {
+    debugPrint('[AuthProvider] loginWithGoogle started');
+    debugPrint('[AuthProvider] webClientId: $webClientId');
+    debugPrint('[AuthProvider] iosClientId: $iosClientId');
+
     state = const AsyncValue.loading();
 
     state = await AsyncValue.guard(() async {
       // Initialize Google service
+      debugPrint('[AuthProvider] Creating GoogleSignInService...');
       final googleService = GoogleSignInService(
         webClientId: webClientId,
         iosClientId: iosClientId,
       );
 
       // Perform Google Sign In
+      debugPrint('[AuthProvider] Calling googleService.signIn()...');
       final googleResult = await googleService.signIn();
+      debugPrint('[AuthProvider] Google sign in completed, email: ${googleResult.email}');
 
       // Send to backend
+      debugPrint('[AuthProvider] Sending to backend...');
       final authService = ref.read(authApiServiceProvider);
       final request = GoogleSignInRequest(
         idToken: googleResult.idToken,
@@ -186,9 +194,13 @@ class AuthNotifier extends _$AuthNotifier {
         displayName: googleResult.displayName,
         photoUrl: googleResult.photoUrl,
       );
+
+      debugPrint('[AuthProvider] Calling authService.loginWithGoogle...');
       final user = await authService.loginWithGoogle(request);
+      debugPrint('[AuthProvider] Backend returned user: ${user.username}, id: ${user.id}');
 
       // Save user data and token
+      debugPrint('[AuthProvider] Saving user data to SharedPreferences...');
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('auth_token', user.token);
       await prefs.setString('user_id', user.id.toString());
@@ -200,7 +212,16 @@ class AuthNotifier extends _$AuthNotifier {
         await prefs.setString('avatar', user.avatar!);
       }
 
+      debugPrint('[AuthProvider] Login complete, returning user');
       return user;
     });
+
+    debugPrint('[AuthProvider] Final state: hasValue=${state.hasValue}, hasError=${state.hasError}');
+    if (state.hasError) {
+      debugPrint('[AuthProvider] Error: ${state.error}');
+    }
+    if (state.hasValue) {
+      debugPrint('[AuthProvider] User value: ${state.value?.username}');
+    }
   }
 }

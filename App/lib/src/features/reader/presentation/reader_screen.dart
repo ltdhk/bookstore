@@ -5,15 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:screen_brightness/screen_brightness.dart';
 
 import 'package:novelpop/src/features/settings/data/theme_provider.dart';
 import 'package:novelpop/src/features/reader/providers/chapter_provider.dart';
 import 'package:novelpop/src/features/reader/data/models/chapter_vo.dart';
-import 'package:novelpop/src/features/reader/data/models/reader_data.dart';
 import 'package:novelpop/src/features/reader/data/reading_progress_service.dart';
 import 'package:novelpop/src/features/bookshelf/providers/bookshelf_provider.dart';
-import 'package:novelpop/src/features/subscription/presentation/subscription_dialog.dart';
-import 'package:novelpop/src/features/auth/providers/auth_provider.dart';
+import 'package:novelpop/src/features/subscription/utils/subscription_flow_helper.dart';
 import 'package:novelpop/src/features/passcode/providers/passcode_provider.dart';
 import 'package:novelpop/src/features/passcode/data/passcode_api_service.dart';
 import 'package:novelpop/src/features/reading_history/providers/reading_history_provider.dart';
@@ -135,13 +134,76 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   Future<void> _loadReaderSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    final savedBrightness = prefs.getDouble('reader_brightness');
+    final savedEyeProtection = prefs.getBool('reader_eye_protection') ?? false;
+
     setState(() {
       _fontSize = prefs.getDouble('reader_font_size') ?? 18.0;
-      _brightness = prefs.getDouble('reader_brightness') ?? 0.5;
-      _eyeProtectionMode = prefs.getBool('reader_eye_protection') ?? false;
+      _eyeProtectionMode = savedEyeProtection;
 
       // Load background color
       final colorIndex = prefs.getInt('reader_background_color') ?? 0;
+      _backgroundColor = _getBackgroundColorByIndex(colorIndex);
+    });
+
+    // Apply saved brightness or get current system brightness
+    if (savedBrightness != null) {
+      _brightness = savedBrightness;
+      await _setScreenBrightness(savedBrightness);
+    } else {
+      // Get current system brightness
+      try {
+        _brightness = await ScreenBrightness().current;
+      } catch (e) {
+        _brightness = 0.5;
+      }
+    }
+
+    // Apply eye protection mode if enabled
+    if (_eyeProtectionMode) {
+      _applyEyeProtectionMode(true);
+    }
+  }
+
+  /// Set screen brightness using screen_brightness package
+  Future<void> _setScreenBrightness(double brightness) async {
+    try {
+      await ScreenBrightness().setScreenBrightness(brightness);
+    } catch (e) {
+      debugPrint('Failed to set brightness: $e');
+    }
+  }
+
+  /// Reset screen brightness to system default
+  Future<void> _resetScreenBrightness() async {
+    try {
+      await ScreenBrightness().resetScreenBrightness();
+    } catch (e) {
+      debugPrint('Failed to reset brightness: $e');
+    }
+  }
+
+  /// Apply eye protection mode (warm color overlay)
+  void _applyEyeProtectionMode(bool enable) {
+    if (enable) {
+      // When eye protection is on, use a warm yellowish background
+      setState(() {
+        if (_backgroundColor == Colors.white) {
+          _backgroundColor = const Color(0xFFF5F0E1); // Warm white
+        } else if (_backgroundColor == Colors.black) {
+          _backgroundColor = const Color(0xFF1A1A14); // Warm black
+        }
+      });
+    } else {
+      // Restore original background color
+      _loadBackgroundColorFromPrefs();
+    }
+  }
+
+  Future<void> _loadBackgroundColorFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final colorIndex = prefs.getInt('reader_background_color') ?? 0;
+    setState(() {
       _backgroundColor = _getBackgroundColorByIndex(colorIndex);
     });
   }
@@ -186,6 +248,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     _saveCurrentProgress();
     _scrollController.removeListener(_handleScroll);
     _scrollController.dispose();
+    // Reset screen brightness to system default when leaving reader
+    _resetScreenBrightness();
     super.dispose();
   }
 
@@ -424,10 +488,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                   ),
                 ),
               ),
-              // Bottom toolbar placeholder
+              // Bottom toolbar placeholder with disabled icons
               Container(
-                height: 80,
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
                 decoration: BoxDecoration(
                   color: _backgroundColor,
                   boxShadow: [
@@ -435,6 +498,31 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                       color: Colors.black.withValues(alpha: 0.1),
                       blurRadius: 4,
                       offset: const Offset(0, -2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    Icon(
+                      Icons.format_list_bulleted,
+                      color: readingTextColor.withValues(alpha: 0.3),
+                      size: 28,
+                    ),
+                    Icon(
+                      Icons.text_fields,
+                      color: readingTextColor.withValues(alpha: 0.3),
+                      size: 28,
+                    ),
+                    Icon(
+                      Icons.dark_mode,
+                      color: readingTextColor.withValues(alpha: 0.3),
+                      size: 28,
+                    ),
+                    Icon(
+                      Icons.collections_bookmark_outlined,
+                      color: readingTextColor.withValues(alpha: 0.3),
+                      size: 28,
                     ),
                   ],
                 ),
@@ -559,10 +647,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                     ),
                   ),
                 ),
-                // Bottom toolbar placeholder
+                // Bottom toolbar placeholder with disabled icons
                 Container(
-                  height: 80,
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
                   decoration: BoxDecoration(
                     color: _backgroundColor,
                     boxShadow: [
@@ -574,16 +661,29 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                     ],
                   ),
                   child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      Expanded(
-                        child: Text(
-                          'Loading chapter...',
-                          style: TextStyle(
-                            color: readingTextColor.withValues(alpha: 0.6),
-                            fontSize: 12,
-                          ),
-                          textAlign: TextAlign.center,
+                      // 只有当章节数大于3时才显示章节列表图标
+                      if (chapters.length > 3)
+                        Icon(
+                          Icons.format_list_bulleted,
+                          color: readingTextColor.withValues(alpha: 0.3),
+                          size: 28,
                         ),
+                      Icon(
+                        Icons.text_fields,
+                        color: readingTextColor.withValues(alpha: 0.3),
+                        size: 28,
+                      ),
+                      Icon(
+                        Icons.dark_mode,
+                        color: readingTextColor.withValues(alpha: 0.3),
+                        size: 28,
+                      ),
+                      Icon(
+                        Icons.collections_bookmark_outlined,
+                        color: readingTextColor.withValues(alpha: 0.3),
+                        size: 28,
                       ),
                     ],
                   ),
@@ -822,16 +922,18 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        IconButton(
-                          icon: Icon(
-                            Icons.format_list_bulleted,
-                            color: readingTextColor,
-                            size: 28,
+                        // 只有当章节数大于3时才显示章节列表图标
+                        if (chapters.length > 3)
+                          IconButton(
+                            icon: Icon(
+                              Icons.format_list_bulleted,
+                              color: readingTextColor,
+                              size: 28,
+                            ),
+                            onPressed: () {
+                              _showChapterDrawer(context, book, chapters);
+                            },
                           ),
-                          onPressed: () {
-                            _showChapterDrawer(context, book, chapters);
-                          },
-                        ),
                         IconButton(
                           icon: Icon(
                             Icons.text_fields,
@@ -1014,9 +1116,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                             setState(() {
                               _brightness = value;
                             });
-                            setModalState(() {
-                              _brightness = value;
-                            });
+                            setModalState(() {});
+                            // Apply screen brightness
+                            _setScreenBrightness(value);
                             _saveReaderSettings();
                           },
                         ),
@@ -1054,12 +1156,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 // Eye protection mode
                 InkWell(
                   onTap: () {
+                    final newValue = !_eyeProtectionMode;
                     setState(() {
-                      _eyeProtectionMode = !_eyeProtectionMode;
+                      _eyeProtectionMode = newValue;
                     });
-                    setModalState(() {
-                      _eyeProtectionMode = !_eyeProtectionMode;
-                    });
+                    setModalState(() {});
+                    // Apply eye protection mode
+                    _applyEyeProtectionMode(newValue);
                     _saveReaderSettings();
                   },
                   child: Row(
@@ -1075,9 +1178,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                           setState(() {
                             _eyeProtectionMode = value;
                           });
-                          setModalState(() {
-                            _eyeProtectionMode = value;
-                          });
+                          setModalState(() {});
+                          // Apply eye protection mode
+                          _applyEyeProtectionMode(value);
                           _saveReaderSettings();
                         },
                         activeTrackColor: textColor.withValues(alpha: 0.5),
@@ -1505,219 +1608,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     );
   }
 
-  /// Show login dialog (same as profile screen)
-  void _showLoginDialog(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 40.0, horizontal: 32.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Close button
-            Align(
-              alignment: Alignment.topRight,
-              child: IconButton(
-                icon: Icon(
-                  Icons.close,
-                  color: isDark ? Colors.white : Colors.black,
-                ),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ),
-            const SizedBox(height: 20),
-            // App logo
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFFF6B9D), Color(0xFFFF3D7F)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: const Center(
-                child: Text(
-                  'M',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 60,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            // App name
-            Text(
-              'Novel Master',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black,
-              ),
-            ),
-            const SizedBox(height: 40),
-            // Login with Apple button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  // TODO: Implement Apple login
-                  Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF6B9D),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16.0),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  'Log in via apple',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Login with Google button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  // TODO: Implement Google login
-                  Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF6B9D),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16.0),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  'Log in via google',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Login with Email button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  context.push('/login');
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF6B9D),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16.0),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  'Log in via Email',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 32),
-            // Agreement text
-            RichText(
-              textAlign: TextAlign.center,
-              text: TextSpan(
-                style: TextStyle(
-                  color: isDark ? Colors.grey[400] : Colors.grey[600],
-                  fontSize: 12,
-                ),
-                children: const [
-                  TextSpan(text: 'When you log in, we will assume that you have read and agreed to the\n'),
-                  TextSpan(
-                    text: 'User Agreement',
-                    style: TextStyle(
-                      color: Color(0xFFFF6B9D),
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
-                  TextSpan(text: ' & '),
-                  TextSpan(
-                    text: 'Privacy Agreement',
-                    style: TextStyle(
-                      color: Color(0xFFFF6B9D),
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: MediaQuery.of(context).viewInsets.bottom + 20),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Show subscription dialog (check login first)
-  void _showSubscriptionDialog(BuildContext context) {
-    // Check if user is logged in
-    final authState = ref.read(authProvider);
-
-    authState.whenOrNull(
-      data: (user) {
-        if (user == null) {
-          // User not logged in, show login dialog
-          _showLoginDialog(context);
-        } else {
-          // User logged in, show subscription dialog
-          showDialog(
-            context: context,
-            builder: (context) => SubscriptionDialog(
-              sourceBookId: int.tryParse(widget.bookId),
-              sourceEntry: 'reader',
-            ),
-          ).then((result) {
-            // If subscription was successful, refresh chapter provider
-            if (result == true) {
-              final bookId = int.parse(widget.bookId);
-              ref.invalidate(readerDataProvider(bookId));
-              ref.invalidate(chapterContentProvider(bookId, ref.read(currentChapterIndexProvider)));
-            }
-          });
-        }
-      },
-    );
-  }
-
   /// Build membership upgrade section
   Widget _buildMembershipUpgradeSection(BuildContext context, bool isDarkTheme, Color textColor) {
     return Container(
@@ -1778,7 +1668,21 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () => _showSubscriptionDialog(context),
+              onPressed: () {
+                final bookId = int.parse(widget.bookId);
+                final currentIndex = ref.read(currentChapterIndexProvider);
+                SubscriptionFlowHelper.showSubscriptionFlow(
+                  context: context,
+                  ref: ref,
+                  sourceBookId: bookId,
+                  sourceEntry: 'reader',
+                  onSuccess: () {
+                    // 订阅成功后刷新章节数据
+                    ref.invalidate(readerDataProvider(bookId));
+                    ref.invalidate(chapterContentProvider(bookId, currentIndex));
+                  },
+                );
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFE91E63),
                 padding: const EdgeInsets.symmetric(vertical: 16),

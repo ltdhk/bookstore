@@ -34,8 +34,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       key: const ValueKey('home_screen_4_tabs'), // Force rebuild with new tab count
+      backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
       body: SafeArea(
         child: Column(
           children: [
@@ -174,6 +176,7 @@ class _HomeTabContentState extends ConsumerState<HomeTabContent> with AutomaticK
       onRefresh: _onRefresh,
       child: CustomScrollView(
         controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           // Search bar
           SliverToBoxAdapter(

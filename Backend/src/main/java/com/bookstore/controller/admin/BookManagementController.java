@@ -10,6 +10,7 @@ import com.bookstore.entity.Tag;
 import com.bookstore.repository.BookTagRepository;
 import com.bookstore.repository.TagRepository;
 import com.bookstore.service.BookService;
+import com.bookstore.service.CacheService;
 import com.bookstore.service.impl.BookServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -26,6 +27,7 @@ public class BookManagementController {
     private final BookServiceImpl bookService;
     private final BookTagRepository bookTagRepository;
     private final TagRepository tagRepository;
+    private final CacheService cacheService;
 
     @GetMapping
     public Result<IPage<Book>> getBooks(
@@ -49,6 +51,8 @@ public class BookManagementController {
     @PostMapping
     public Result<Book> createBook(@RequestBody Book book) {
         bookService.save(book);
+        // 新增书籍后清除首页缓存
+        cacheService.evictHomeBooksCache();
         return Result.success(book);
     }
 
@@ -56,6 +60,8 @@ public class BookManagementController {
     public Result<Book> updateBook(@PathVariable Long id, @RequestBody Book book) {
         book.setId(id);
         bookService.updateById(book);
+        // 更新书籍后清除相关缓存
+        cacheService.evictBookCache(id);
         return Result.success(book);
     }
 
@@ -66,6 +72,8 @@ public class BookManagementController {
         QueryWrapper<BookTag> deleteQuery = new QueryWrapper<>();
         deleteQuery.eq("book_id", id);
         bookTagRepository.delete(deleteQuery);
+        // 删除书籍后清除相关缓存
+        cacheService.evictBookCache(id);
         return Result.success("Deleted");
     }
 

@@ -50,8 +50,6 @@ class LocaleController extends _$LocaleController {
     switch (languageCode) {
       case 'en':
         return const Locale('en');
-      case 'zh':
-        return const Locale('zh');
       case 'pt':
         return const Locale('pt');
       case 'es':
@@ -67,7 +65,6 @@ class LocaleController extends _$LocaleController {
   /// Get available locales
   static const List<Locale> supportedLocales = [
     Locale('en'), // English
-    Locale('zh'), // Chinese
     Locale('pt'), // Portuguese
     Locale('es'), // Spanish
     Locale('id'), // Indonesian
@@ -78,8 +75,6 @@ class LocaleController extends _$LocaleController {
     switch (locale.languageCode) {
       case 'en':
         return 'English';
-      case 'zh':
-        return '中文';
       case 'pt':
         return 'Português';
       case 'es':

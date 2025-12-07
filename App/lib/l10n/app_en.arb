@@ -13,15 +13,15 @@
   "male": "Male",
   "female": "Female",
 
-  "searchHint": "Search for novel next",
+  "searchHint": "Search for novel pop",
   "settings": "Setting",
   "darkMode": "Dark Mode",
   "alwaysLightMode": "Always Light Mode",
   "autoUnlockChapter": "Auto unlock chapter",
   "language": "Language",
   "versionUpdate": "Version Update",
-  "about": "About Novel Next",
-  "rate": "Rate Novel Next",
+  "about": "About Novel Pop",
+  "rate": "Rate Novel Pop",
   "followSystem": "Follow System",
   "alwaysDark": "Always Dark Mode",
   "alwaysLight": "Always Light Mode",
@@ -264,6 +264,6 @@
   "unlockWithSVIP": "Subscribe to SVIP to unlock",
   "chapterLoadError": "Failed to load chapter",
   "loading": "Loading...",
-  "novelMaster": "Novel Next",
+  "novelMaster": "Novel Pop",
   "expiresOn": "Expires on"
 }

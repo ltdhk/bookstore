@@ -16,8 +16,8 @@
   "autoUnlockChapter": "Desbloquear capítulo automaticamente",
   "language": "Idioma",
   "versionUpdate": "Atualização de Versão",
-  "about": "Sobre Novel Next",
-  "rate": "Avaliar Novel Next",
+  "about": "Sobre Novel Pop",
+  "rate": "Avaliar Novel Pop",
   "followSystem": "Seguir Sistema",
   "alwaysDark": "Sempre Modo Escuro",
   "alwaysLight": "Sempre Modo Claro",
@@ -138,6 +138,6 @@
   "unlockWithSVIP": "Assine SVIP para desbloquear",
   "chapterLoadError": "Falha ao carregar capítulo",
   "loading": "Carregando...",
-  "novelMaster": "Novel Next",
+  "novelMaster": "Novel Pop",
   "expiresOn": "Expira em"
 }

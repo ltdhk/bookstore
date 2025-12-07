@@ -436,4 +436,103 @@ flutter pub get
 
 ssh -i C:\path\to\private_key.pem user@192.168.1.1
 
-ssh -i C:\Users\ltdhk\Documents\DevTools\novelpop_key.pem ec2-user@ec2-18-118-241-217.us-east-2.compute.amazonaws.com
+ssh -i C:\Users\ltdhk\Documents\DevTools\novelpop_key.pem ec2-user@18.189.33.139
+
+
+
+
+# 创建挂载目录
+mkdir -p /home/nginx/conf
+mkdir -p /home/nginx/log
+mkdir -p /home/nginx/html
+
+# 生成容器
+docker run --name nginx -p 9001:80 -d nginx
+# 将容器nginx.conf文件复制到宿主机
+docker cp nginx:/etc/nginx/nginx.conf /home/nginx/conf/nginx.conf
+# 将容器conf.d文件夹下内容复制到宿主机
+docker cp nginx:/etc/nginx/conf.d /home/nginx/conf/conf.d
+# 将容器中的html文件夹复制到宿主机
+docker cp nginx:/usr/share/nginx/html /home/nginx/
+
+
+
+
+# 直接执行docker rm nginx或者以容器id方式关闭容器
+# 找到nginx对应的容器id
+docker ps -a
+# 关闭该容器
+docker stop novelpop-nginx
+# 删除该容器
+docker rm novelpop-nginx
+ 
+# 删除正在运行的nginx容器
+docker rm -f novelpop-nginx
+
+
+docker run \
+-p 9002:80 \
+--name novelpop-nginx \
+-v /home/nginx/conf/nginx.conf:/etc/nginx/nginx.conf \
+-v /home/nginx/conf/conf.d:/etc/nginx/conf.d \
+-v /home/nginx/log:/var/log/nginx \
+-v /home/nginx/html:/usr/share/nginx/html \
+-d nginx:latest
+
+
+# 4. 启动正式的 Nginx 容器
+docker run \
+  -p 81:80 \
+  -p 4433:443 \
+  --name novelpop-nginx \
+  -v /home/ec2-user/docker/nginx/conf/nginx.conf:/etc/nginx/nginx.conf \
+  -v /home/ec2-user/docker/nginx/conf/conf.d:/etc/nginx/conf.d \
+  -v /home/ec2-user/docker/nginx/log:/var/log/nginx \
+  -v /home/ec2-user/docker/nginx/html:/usr/share/nginx/html \
+  -v /home/ec2-user/docker/nginx/ssl:/etc/nginx/ssl:ro \
+  -v /home/ec2-user/docker/nginx/certbot:/var/www/certbot:ro \
+  --restart unless-stopped \
+  -d nginx:latest
+
+
+
+# 5. 测试配置
+docker exec novelpop-nginx nginx -t
+
+# 6. 重载配置
+docker exec novelpop-nginx nginx -s reload
+
+# 7. 查看日志
+docker logs -f novelpop-nginx
+tail -f /home/nginx/log/access.log
+tail -f /home/nginx/log/error.log
+
+
+# 后端运行
+docker run -d \
+  --name novelpop-backend \
+  -p 8090:8090 \
+  -e SPRING_PROFILES_ACTIVE=docker \
+  -e SPRING_DATASOURCE_URL="jdbc:mysql://your-db-host:3307/novelpop_db?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai" \
+  -e SPRING_DATASOURCE_USERNAME=your-db-username \
+  -e SPRING_DATASOURCE_PASSWORD=your-db-password \
+  -e AWS_ACCESS_KEY=your-aws-access-key \
+  -e AWS_SECRET_KEY=your-aws-secret-key \
+  -e APPLE_SHARED_SECRET=your-apple-shared-secret \
+  -v /home/ec2-user/docker/backend/logs:/app/logs \
+  ltdhk/novelpop-backend:latest
+
+docker logs -f novelpop-backend
+
+
+docker stop novelpop-backend
+docker rm novelpop-backend
+
+
+flutter build appbundle --release
+
+flutter run --release -d MQS0219815035438
+flutter logs -d MQS0219815035438
+
+
+ mvn clean package -DskipTests

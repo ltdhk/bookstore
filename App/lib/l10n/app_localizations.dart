@@ -155,7 +155,7 @@ abstract class AppLocalizations {
   /// No description provided for @searchHint.
   ///
   /// In en, this message translates to:
-  /// **'Search for novel next'**
+  /// **'Search for novel pop'**
   String get searchHint;
 
   /// No description provided for @settings.
@@ -197,13 +197,13 @@ abstract class AppLocalizations {
   /// No description provided for @about.
   ///
   /// In en, this message translates to:
-  /// **'About Novel Next'**
+  /// **'About Novel Pop'**
   String get about;
 
   /// No description provided for @rate.
   ///
   /// In en, this message translates to:
-  /// **'Rate Novel Next'**
+  /// **'Rate Novel Pop'**
   String get rate;
 
   /// No description provided for @followSystem.
@@ -839,7 +839,7 @@ abstract class AppLocalizations {
   /// No description provided for @novelMaster.
   ///
   /// In en, this message translates to:
-  /// **'Novel Next'**
+  /// **'Novel Pop'**
   String get novelMaster;
 
   /// No description provided for @expiresOn.
