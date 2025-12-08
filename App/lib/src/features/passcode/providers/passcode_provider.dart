@@ -5,6 +5,10 @@ import 'package:novelpop/src/features/passcode/data/passcode_api_service.dart';
 
 part 'passcode_provider.g.dart';
 
+/// 口令上下文有效期（小时）
+/// 超过此时间的口令上下文将不会被用于订阅关联
+const int _passcodeContextValidityHours = 24;
+
 /// Global passcode context provider.
 /// Stores the currently active passcode context for tracking.
 /// This is kept alive throughout the app session (memory only, not persisted).
@@ -37,6 +41,40 @@ class ActivePasscodeContext extends _$ActivePasscodeContext {
     if (state?.bookId == bookId) {
       return state;
     }
+    return null;
+  }
+
+  /// 更新口令上下文的最后访问时间
+  /// 当用户通过口令打开书籍阅读器时调用
+  void updateLastAccessed(int bookId) {
+    if (state != null && state!.bookId == bookId) {
+      state = state!.copyWithLastAccessed();
+      debugPrint('PasscodeContext lastAccessedAt updated for book $bookId');
+    }
+  }
+
+  /// 获取最近访问的口令上下文（用于非书籍页面的订阅）
+  /// 仅当口令在有效期内时返回
+  /// [validityHours] 口令有效期（小时），默认24小时
+  PasscodeContext? getRecentPasscodeContext({
+    int validityHours = _passcodeContextValidityHours,
+  }) {
+    if (state == null) return null;
+
+    final now = DateTime.now();
+    final lastAccessed = state!.lastAccessedAt;
+    final hoursSinceAccess = now.difference(lastAccessed).inHours;
+
+    if (hoursSinceAccess <= validityHours) {
+      debugPrint(
+        'Using recent passcode context (accessed ${hoursSinceAccess}h ago): ${state!.passcodeId}',
+      );
+      return state;
+    }
+
+    debugPrint(
+      'Passcode context expired (accessed ${hoursSinceAccess}h ago, limit: ${validityHours}h)',
+    );
     return null;
   }
 }

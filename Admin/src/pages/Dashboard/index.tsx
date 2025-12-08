@@ -19,6 +19,7 @@ import DateRangeSelector from '../../components/Dashboard/DateRangeSelector';
 import PasscodeRankingTable from '../../components/Dashboard/PasscodeRankingTable';
 import DistributorRankingTable from '../../components/Dashboard/DistributorRankingTable';
 import RevenueTrendChart from '../../components/Dashboard/RevenueTrendChart';
+import OrderTrendChart from '../../components/Dashboard/OrderTrendChart';
 import TopBooksChart from '../../components/Charts/TopBooksChart';
 
 const Dashboard: React.FC = () => {
@@ -110,13 +111,32 @@ const Dashboard: React.FC = () => {
       <StatsCards stats={stats} loading={loading} />
 
       <div style={{ marginTop: 24 }}>
-        <Card
-          bordered={false}
-          style={cardStyle}
-          bodyStyle={{ padding: '24px' }}
-        >
-          <RevenueTrendChart data={revenueTrend} />
-        </Card>
+        <Row gutter={[16, 16]}>
+          <Col xs={24} xl={12}>
+            <Card
+              bordered={false}
+              style={cardStyle}
+              bodyStyle={{ padding: '24px' }}
+            >
+              <h3 style={{ margin: '0 0 16px 0', fontSize: 18, fontWeight: 600, color: '#262626' }}>
+                收益趋势
+              </h3>
+              <RevenueTrendChart data={revenueTrend} />
+            </Card>
+          </Col>
+          <Col xs={24} xl={12}>
+            <Card
+              bordered={false}
+              style={cardStyle}
+              bodyStyle={{ padding: '24px' }}
+            >
+              <h3 style={{ margin: '0 0 16px 0', fontSize: 18, fontWeight: 600, color: '#262626' }}>
+                订单趋势
+              </h3>
+              <OrderTrendChart data={revenueTrend} />
+            </Card>
+          </Col>
+        </Row>
       </div>
 
       <div style={{ marginTop: 24 }}>

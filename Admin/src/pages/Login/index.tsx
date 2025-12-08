@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Button, Checkbox, message, Select } from 'antd';
-import { UserOutlined, LockOutlined, GlobalOutlined } from '@ant-design/icons';
+import { Form, Input, Button, Checkbox, message, Select, Tabs } from 'antd';
+import { UserOutlined, LockOutlined, GlobalOutlined, ShopOutlined } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useUserStore } from '../../store/userStore';
-import { login } from '../../api/auth';
+import { login, distributorLogin, getUserInfo } from '../../api/auth';
 import './index.css';
+
+type LoginType = 'admin' | 'distributor';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const setToken = useUserStore((state) => state.setToken);
-  const token = useUserStore((state) => state.token);
+  const { setAuth, setUserInfo, token } = useUserStore();
   const [loading, setLoading] = useState(false);
+  const [loginType, setLoginType] = useState<LoginType>('admin');
   const { t, i18n } = useTranslation();
 
   const changeLanguage = (lang: string) => {
@@ -31,9 +33,29 @@ const Login: React.FC = () => {
   const onFinish = async (values: any) => {
     setLoading(true);
     try {
-      const res = await login(values) as any;
+      // 根据登录类型调用不同的接口
+      const loginApi = loginType === 'admin' ? login : distributorLogin;
+      const res = await loginApi(values) as any;
+
       if (res.code === 200 && res.data?.token) {
-        setToken(res.data.token);
+        // 使用新的 setAuth 方法存储登录信息
+        setAuth({
+          token: res.data.token,
+          role: res.data.role || (loginType === 'admin' ? 'admin' : 'distributor'),
+          distributorId: res.data.distributorId,
+          distributorName: res.data.distributorName,
+        });
+
+        // 获取用户详细信息和权限
+        try {
+          const userInfoRes = await getUserInfo() as any;
+          if (userInfoRes.code === 200 && userInfoRes.data) {
+            setUserInfo(userInfoRes.data);
+          }
+        } catch (e) {
+          console.warn('获取用户信息失败', e);
+        }
+
         message.success('登录成功');
 
         // 跳转到之前访问的页面，如果没有则跳转到首页
@@ -71,8 +93,33 @@ const Login: React.FC = () => {
         </div>
         <div className="login-form-wrapper">
           <h2 className="welcome-text">{t('login.title')}</h2>
-          <p className="sub-text">{t('login.username')}</p>
-          
+
+          <Tabs
+            activeKey={loginType}
+            onChange={(key) => setLoginType(key as LoginType)}
+            centered
+            items={[
+              {
+                key: 'admin',
+                label: (
+                  <span>
+                    <UserOutlined />
+                    管理员登录
+                  </span>
+                ),
+              },
+              {
+                key: 'distributor',
+                label: (
+                  <span>
+                    <ShopOutlined />
+                    分销商登录
+                  </span>
+                ),
+              },
+            ]}
+          />
+
           <Form
             name="login"
             layout="vertical"
@@ -104,7 +151,7 @@ const Login: React.FC = () => {
 
             <Form.Item>
               <Button type="primary" htmlType="submit" block size="large" loading={loading}>
-                {t('login.login')}
+                {loginType === 'admin' ? t('login.login') : '分销商登录'}
               </Button>
             </Form.Item>
           </Form>

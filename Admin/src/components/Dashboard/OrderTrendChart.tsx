@@ -2,11 +2,11 @@ import React, { useEffect, useRef } from 'react';
 import * as echarts from 'echarts';
 import type { RevenueTrend } from '../../api/dashboard';
 
-interface RevenueTrendChartProps {
+interface OrderTrendChartProps {
   data: RevenueTrend[];
 }
 
-const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({ data }) => {
+const OrderTrendChart: React.FC<OrderTrendChartProps> = ({ data }) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
 
@@ -24,7 +24,7 @@ const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({ data }) => {
     if (!chartInstance.current || !data || data.length === 0) return;
 
     const dates = data.map(item => item.date);
-    const revenues = data.map(item => item.revenue);
+    const orderCounts = data.map(item => item.orderCount);
 
     const option = {
       tooltip: {
@@ -43,8 +43,8 @@ const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({ data }) => {
           return `<div style="font-weight: 600; margin-bottom: 4px;">${param.axisValue}</div>
             <div style="display: flex; align-items: center; gap: 8px;">
               <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ${param.color};"></span>
-              <span style="flex: 1;">收益:</span>
-              <span style="font-weight: 600;">¥${param.value.toFixed(2)}</span>
+              <span style="flex: 1;">订单数:</span>
+              <span style="font-weight: 600;">${param.value}</span>
             </div>`;
         },
       },
@@ -76,7 +76,6 @@ const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({ data }) => {
           },
         },
         axisLabel: {
-          formatter: '¥{value}',
           color: '#8c8c8c',
         },
         splitLine: {
@@ -88,14 +87,14 @@ const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({ data }) => {
       },
       series: [
         {
-          name: '收益',
+          name: '订单数',
           type: 'line',
           smooth: true,
-          data: revenues,
+          data: orderCounts,
           symbol: 'circle',
           symbolSize: 8,
           itemStyle: {
-            color: '#1890ff',
+            color: '#52c41a',
           },
           lineStyle: {
             width: 3,
@@ -104,11 +103,11 @@ const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({ data }) => {
             color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
               {
                 offset: 0,
-                color: 'rgba(24, 144, 255, 0.2)',
+                color: 'rgba(82, 196, 26, 0.2)',
               },
               {
                 offset: 1,
-                color: 'rgba(24, 144, 255, 0)',
+                color: 'rgba(82, 196, 26, 0)',
               },
             ]),
           },
@@ -132,4 +131,4 @@ const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({ data }) => {
   return <div ref={chartRef} style={{ width: '100%', height: '300px' }} />;
 };
 
-export default RevenueTrendChart;
+export default OrderTrendChart;

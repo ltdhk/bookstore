@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Input, Space, Modal, Form, message, Popconfirm, Tag, Statistic, Row, Col, Select, Alert, InputNumber } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, BarChartOutlined } from '@ant-design/icons';
-import { getDistributors, createDistributor, updateDistributor, deleteDistributor, getDistributorStats } from '../../api/distributor';
+import { Table, Button, Input, Space, Modal, Form, message, Popconfirm, Tag, Select, Alert, InputNumber } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
+import { getDistributors, createDistributor, updateDistributor, deleteDistributor } from '../../api/distributor';
 
 const DistributorManagement: React.FC = () => {
   const [data, setData] = useState([]);
@@ -10,9 +10,7 @@ const DistributorManagement: React.FC = () => {
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [searchKeyword, setSearchKeyword] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
-  const [statsVisible, setStatsVisible] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
-  const [currentStats, setCurrentStats] = useState<any>({});
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [form] = Form.useForm();
 
@@ -49,16 +47,6 @@ const DistributorManagement: React.FC = () => {
     form.setFieldsValue(record);
     setErrorMsg('');
     setModalVisible(true);
-  };
-
-  const handleStats = async (record: any) => {
-    try {
-      const res: any = await getDistributorStats(record.id);
-      setCurrentStats(res);
-      setStatsVisible(true);
-    } catch (error) {
-      console.error(error);
-    }
   };
 
   const handleDelete = async (id: number) => {
@@ -143,12 +131,9 @@ const DistributorManagement: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 200,
+      width: 150,
       render: (_: any, record: any) => (
         <Space>
-          <Button type="link" icon={<BarChartOutlined />} onClick={() => handleStats(record)}>
-            统计
-          </Button>
           <Button type="link" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
             编辑
           </Button>
@@ -266,25 +251,6 @@ const DistributorManagement: React.FC = () => {
             </Select>
           </Form.Item>
         </Form>
-      </Modal>
-
-      <Modal
-        title="分销统计"
-        open={statsVisible}
-        onCancel={() => setStatsVisible(false)}
-        footer={null}
-      >
-        <Row gutter={16}>
-          <Col span={8}>
-            <Statistic title="点击量" value={currentStats.clicks} />
-          </Col>
-          <Col span={8}>
-            <Statistic title="转化数" value={currentStats.conversions} />
-          </Col>
-          <Col span={8}>
-            <Statistic title="总收入" value={currentStats.income} precision={2} prefix="¥" />
-          </Col>
-        </Row>
       </Modal>
     </div>
   );

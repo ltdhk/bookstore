@@ -4,6 +4,7 @@ import 'package:novelpop/src/features/subscription/data/models/subscription_prod
 import 'package:novelpop/src/features/subscription/data/models/subscription_status.dart';
 import 'package:novelpop/src/services/iap/in_app_purchase_service.dart';
 import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 part 'subscription_provider.g.dart';
 
@@ -70,4 +71,34 @@ Future<Map<String, SubscriptionProduct>> groupedSubscriptionProducts(Ref ref) as
   }
 
   return grouped;
+}
+
+/// 获取当前平台的所有IAP产品ID集合
+@riverpod
+Future<Set<String>> platformProductIds(Ref ref) async {
+  final products = await ref.watch(platformSubscriptionProductsProvider.future);
+  final Set<String> ids = {};
+  final isIOS = !kIsWeb && Platform.isIOS;
+  for (final product in products) {
+    final platformId = isIOS ? product.appleProductId : product.googleProductId;
+    if (platformId != null && platformId.isNotEmpty) {
+      ids.add(platformId);
+    }
+  }
+  return ids;
+}
+
+/// 获取 planType -> 平台产品ID 的映射
+@riverpod
+Future<Map<String, String>> planTypeToPlatformProductId(Ref ref) async {
+  final products = await ref.watch(platformSubscriptionProductsProvider.future);
+  final Map<String, String> mapping = {};
+  final isIOS = !kIsWeb && Platform.isIOS;
+  for (final product in products) {
+    final platformId = isIOS ? product.appleProductId : product.googleProductId;
+    if (platformId != null && platformId.isNotEmpty) {
+      mapping[product.planType] = platformId;
+    }
+  }
+  return mapping;
 }

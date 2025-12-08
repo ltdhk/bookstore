@@ -33,12 +33,19 @@ import {
   type SubscriptionOrder,
   type SubscriptionStats,
 } from '../../api/subscription';
+import { getActiveDistributors } from '../../api/distributor';
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
 
+// 扩展订单类型，包含用户名和分销商名称
+interface SubscriptionOrderWithNames extends SubscriptionOrder {
+  username?: string;
+  distributorName?: string;
+}
+
 const SubscriptionManagement: React.FC = () => {
-  const [orders, setOrders] = useState<SubscriptionOrder[]>([]);
+  const [orders, setOrders] = useState<SubscriptionOrderWithNames[]>([]);
   const [stats, setStats] = useState<SubscriptionStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [statsLoading, setStatsLoading] = useState(false);
@@ -50,6 +57,7 @@ const SubscriptionManagement: React.FC = () => {
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [currentOrder, setCurrentOrder] = useState<any | null>(null);
   const [searchForm] = Form.useForm();
+  const [distributors, setDistributors] = useState<any[]>([]);
 
   // 搜索参数
   const [searchParams, setSearchParams] = useState<any>({
@@ -97,9 +105,22 @@ const SubscriptionManagement: React.FC = () => {
     }
   };
 
+  // 获取分销商列表
+  const fetchDistributors = async () => {
+    try {
+      const res: any = await getActiveDistributors();
+      if (res.code === 200) {
+        setDistributors(res.data?.records || []);
+      }
+    } catch (error) {
+      console.error('获取分销商列表失败', error);
+    }
+  };
+
   useEffect(() => {
     fetchOrders();
     fetchStats();
+    fetchDistributors();
   }, []);
 
   // 查看订单详情
@@ -145,7 +166,7 @@ const SubscriptionManagement: React.FC = () => {
     if (values.status) params.status = values.status;
     if (values.platform) params.platform = values.platform;
     if (values.subscriptionPeriod) params.subscriptionPeriod = values.subscriptionPeriod;
-    if (values.userId) params.userId = values.userId;
+    if (values.username) params.username = values.username;
     if (values.distributorId) params.distributorId = values.distributorId;
     if (values.dateRange && values.dateRange.length === 2) {
       params.startDate = values.dateRange[0].format('YYYY-MM-DD');
@@ -169,7 +190,7 @@ const SubscriptionManagement: React.FC = () => {
   };
 
   // 表格列定义
-  const columns: ColumnsType<SubscriptionOrder> = [
+  const columns: ColumnsType<SubscriptionOrderWithNames> = [
     {
       title: '订单号',
       dataIndex: 'orderNo',
@@ -177,10 +198,18 @@ const SubscriptionManagement: React.FC = () => {
       width: 180,
     },
     {
-      title: '用户ID',
-      dataIndex: 'userId',
-      key: 'userId',
-      width: 100,
+      title: '用户',
+      dataIndex: 'username',
+      key: 'username',
+      width: 150,
+      render: (username: string, record) => username || record.userId || '-',
+    },
+    {
+      title: '分销商',
+      dataIndex: 'distributorName',
+      key: 'distributorName',
+      width: 120,
+      render: (name: string) => name || '-',
     },
     {
       title: '平台',
@@ -282,7 +311,7 @@ const SubscriptionManagement: React.FC = () => {
       key: 'action',
       fixed: 'right',
       width: 180,
-      render: (_: any, record: SubscriptionOrder) => (
+      render: (_: any, record: SubscriptionOrderWithNames) => (
         <Space size="small">
           <Button
             type="link"
@@ -374,13 +403,26 @@ const SubscriptionManagement: React.FC = () => {
               <Option value="monthly">月度</Option>
               <Option value="quarterly">季度</Option>
               <Option value="yearly">年度</Option>
+              <Option value="weekly">周度</Option>
             </Select>
           </Form.Item>
-          <Form.Item name="userId" label="用户ID">
-            <Input placeholder="请输入用户ID" style={{ width: 140 }} />
+          <Form.Item name="username" label="用户名">
+            <Input placeholder="请输入用户名" style={{ width: 140 }} />
           </Form.Item>
-          <Form.Item name="distributorId" label="分销商ID">
-            <Input placeholder="请输入分销商ID" style={{ width: 140 }} />
+          <Form.Item name="distributorId" label="分销商">
+            <Select
+              placeholder="请选择分销商"
+              style={{ width: 160 }}
+              allowClear
+              showSearch
+              optionFilterProp="children"
+            >
+              {distributors.map((d: any) => (
+                <Option key={d.id} value={d.id}>
+                  {d.name}
+                </Option>
+              ))}
+            </Select>
           </Form.Item>
           <Form.Item name="dateRange" label="创建时间">
             <RangePicker />
@@ -432,93 +474,99 @@ const SubscriptionManagement: React.FC = () => {
           <div>
             <Descriptions bordered column={2}>
               <Descriptions.Item label="订单号" span={2}>
-                {currentOrder.order?.orderNo}
+                {currentOrder.orderNo}
               </Descriptions.Item>
               <Descriptions.Item label="用户ID">
-                {currentOrder.order?.userId}
+                {currentOrder.userId}
               </Descriptions.Item>
               <Descriptions.Item label="用户名">
-                {currentOrder.user?.username}
+                {currentOrder.username}
               </Descriptions.Item>
               <Descriptions.Item label="平台">
                 <Tag
                   color={
-                    currentOrder.order?.platform === 'AppStore' ? 'blue' : 'green'
+                    currentOrder.platform === 'AppStore' ? 'blue' : 'green'
                   }
                 >
-                  {currentOrder.order?.platform}
+                  {currentOrder.platform}
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="状态">
                 <Tag
                   color={
-                    currentOrder.order?.status === 'Paid' ? 'success' : 'warning'
+                    currentOrder.status === 'Paid' ? 'success' : 'warning'
                   }
                 >
-                  {currentOrder.order?.status}
+                  {currentOrder.status}
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="订阅类型">
-                {currentOrder.order?.subscriptionPeriod}
+                {currentOrder.subscriptionPeriod}
               </Descriptions.Item>
               <Descriptions.Item label="金额">
-                ${currentOrder.order?.amount?.toFixed(2)}
+                ${currentOrder.amount?.toFixed(2)}
               </Descriptions.Item>
               <Descriptions.Item label="产品ID" span={2}>
-                {currentOrder.order?.productId}
+                {currentOrder.productId}
               </Descriptions.Item>
               <Descriptions.Item label="产品名称" span={2}>
-                {currentOrder.product?.productName}
+                {currentOrder.productName}
               </Descriptions.Item>
               <Descriptions.Item label="订阅开始时间" span={2}>
-                {dayjs(currentOrder.order?.subscriptionStartDate).format(
+                {dayjs(currentOrder.subscriptionStartDate).format(
                   'YYYY-MM-DD HH:mm:ss'
                 )}
               </Descriptions.Item>
               <Descriptions.Item label="订阅结束时间" span={2}>
-                {dayjs(currentOrder.order?.subscriptionEndDate).format(
+                {dayjs(currentOrder.subscriptionEndDate).format(
                   'YYYY-MM-DD HH:mm:ss'
                 )}
               </Descriptions.Item>
               <Descriptions.Item label="自动续订">
-                {currentOrder.order?.isAutoRenew ? '是' : '否'}
+                {currentOrder.isAutoRenew ? '是' : '否'}
               </Descriptions.Item>
               <Descriptions.Item label="分销商ID">
-                {currentOrder.order?.distributorId || '-'}
+                {currentOrder.distributorId
+                  ? `${currentOrder.distributorId} (${currentOrder.distributorName || '-'})`
+                  : '-'}
               </Descriptions.Item>
               <Descriptions.Item label="来源通行证ID">
-                {currentOrder.order?.sourcePasscodeId || '-'}
+                {currentOrder.sourcePasscodeId
+                  ? `${currentOrder.sourcePasscodeId} (${currentOrder.passcodeName || currentOrder.passcodeCode || '-'})`
+                  : '-'}
               </Descriptions.Item>
               <Descriptions.Item label="来源书籍ID">
-                {currentOrder.order?.sourceBookId || '-'}
+                {currentOrder.sourceBookId
+                  ? `${currentOrder.sourceBookId} (${currentOrder.bookTitle || '-'})`
+                  : '-'}
               </Descriptions.Item>
               <Descriptions.Item label="来源入口" span={2}>
-                {currentOrder.order?.sourceEntry === 'profile'
+                {currentOrder.sourceEntry === 'profile'
                   ? '个人中心'
-                  : currentOrder.order?.sourceEntry === 'reader'
+                  : currentOrder.sourceEntry === 'reader'
                   ? '阅读页'
                   : '-'}
               </Descriptions.Item>
               <Descriptions.Item label="原始交易ID" span={2}>
-                {currentOrder.order?.originalTransactionId}
+                {currentOrder.originalTransactionId}
               </Descriptions.Item>
               <Descriptions.Item label="平台交易ID" span={2}>
-                {currentOrder.order?.platformTransactionId}
+                {currentOrder.platformTransactionId}
               </Descriptions.Item>
-              {currentOrder.order?.cancelDate && (
+              {currentOrder.cancelDate && (
                 <>
                   <Descriptions.Item label="取消时间" span={2}>
-                    {dayjs(currentOrder.order?.cancelDate).format(
+                    {dayjs(currentOrder.cancelDate).format(
                       'YYYY-MM-DD HH:mm:ss'
                     )}
                   </Descriptions.Item>
                   <Descriptions.Item label="取消原因" span={2}>
-                    {currentOrder.order?.cancelReason}
+                    {currentOrder.cancelReason}
                   </Descriptions.Item>
                 </>
               )}
               <Descriptions.Item label="创建时间" span={2}>
-                {dayjs(currentOrder.order?.createTime).format(
+                {dayjs(currentOrder.createTime).format(
                   'YYYY-MM-DD HH:mm:ss'
                 )}
               </Descriptions.Item>

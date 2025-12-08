@@ -338,3 +338,96 @@ final class GroupedSubscriptionProductsProvider
 
 String _$groupedSubscriptionProductsHash() =>
     r'db1ea18b8ae24354153d3b7dd1b79b9604dc8361';
+
+/// 获取当前平台的所有IAP产品ID集合
+
+@ProviderFor(platformProductIds)
+const platformProductIdsProvider = PlatformProductIdsProvider._();
+
+/// 获取当前平台的所有IAP产品ID集合
+
+final class PlatformProductIdsProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<Set<String>>,
+          Set<String>,
+          FutureOr<Set<String>>
+        >
+    with $FutureModifier<Set<String>>, $FutureProvider<Set<String>> {
+  /// 获取当前平台的所有IAP产品ID集合
+  const PlatformProductIdsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'platformProductIdsProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$platformProductIdsHash();
+
+  @$internal
+  @override
+  $FutureProviderElement<Set<String>> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<Set<String>> create(Ref ref) {
+    return platformProductIds(ref);
+  }
+}
+
+String _$platformProductIdsHash() =>
+    r'c216c028263bae059489069f9be5dab3eac59a37';
+
+/// 获取 planType -> 平台产品ID 的映射
+
+@ProviderFor(planTypeToPlatformProductId)
+const planTypeToPlatformProductIdProvider =
+    PlanTypeToPlatformProductIdProvider._();
+
+/// 获取 planType -> 平台产品ID 的映射
+
+final class PlanTypeToPlatformProductIdProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<Map<String, String>>,
+          Map<String, String>,
+          FutureOr<Map<String, String>>
+        >
+    with
+        $FutureModifier<Map<String, String>>,
+        $FutureProvider<Map<String, String>> {
+  /// 获取 planType -> 平台产品ID 的映射
+  const PlanTypeToPlatformProductIdProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'planTypeToPlatformProductIdProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$planTypeToPlatformProductIdHash();
+
+  @$internal
+  @override
+  $FutureProviderElement<Map<String, String>> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<Map<String, String>> create(Ref ref) {
+    return planTypeToPlatformProductId(ref);
+  }
+}
+
+String _$planTypeToPlatformProductIdHash() =>
+    r'2c56ea33046cf4ae7887359052013c98c6ba70b9';

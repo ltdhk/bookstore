@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Layout, Menu, Avatar, Dropdown, message, Modal, Select } from 'antd';
+import React, { useState, useMemo } from 'react';
+import { Layout, Menu, Avatar, message, Select } from 'antd';
+import type { MenuProps } from 'antd';
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -10,7 +11,6 @@ import {
   ShopOutlined,
   SettingOutlined,
   LogoutOutlined,
-  ExclamationCircleOutlined,
   GlobalOutlined,
   CrownOutlined,
   TagsOutlined,
@@ -23,14 +23,19 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useUserStore } from '../store/userStore';
 import { logout as logoutApi } from '../api/auth';
+import { MENU_PERMISSIONS } from '../config/permissions';
 
 const { Header, Sider, Content } = Layout;
+
+type MenuItem = Required<MenuProps>['items'][number] & {
+  children?: MenuItem[];
+};
 
 const MainLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const logout = useUserStore((state) => state.logout);
+  const { logout, hasPermission, userInfo, role } = useUserStore();
   const { t, i18n } = useTranslation();
 
   const changeLanguage = (lang: string) => {
@@ -47,7 +52,15 @@ const MainLayout: React.FC = () => {
     }
   };
 
-  const menuItems = [
+  // 检查用户是否有权限访问指定菜单
+  const canAccessMenu = (key: string): boolean => {
+    const requiredPerms = MENU_PERMISSIONS[key];
+    if (!requiredPerms) return true; // 未配置权限要求的菜单默认允许
+    return requiredPerms.some((perm) => hasPermission(perm));
+  };
+
+  // 所有菜单项定义
+  const allMenuItems: MenuItem[] = [
     {
       key: '/',
       icon: <DashboardOutlined />,
@@ -124,42 +137,52 @@ const MainLayout: React.FC = () => {
     },
   ];
 
-  const handleLogout = () => {
-    Modal.confirm({
-      title: t('common.confirmLogout'),
-      icon: <ExclamationCircleOutlined />,
-      content: t('common.confirmLogoutMsg'),
-      okText: t('common.confirm'),
-      cancelText: t('common.cancel'),
-      onOk: async () => {
-        try {
-          // 调用后端退出接口（可选）
-          await logoutApi();
-        } catch (error) {
-          // 即使后端退出失败，也清除本地token
-          console.error('Logout API failed:', error);
-        } finally {
-          // 清除本地存储
-          logout();
-          message.success(t('common.logoutSuccess'));
-          // 跳转到登录页
-          navigate('/login', { replace: true });
-        }
-      }
-    });
-  };
+  // 根据权限过滤菜单项
+  const menuItems = useMemo(() => {
+    const filterMenuItems = (items: MenuItem[]): MenuItem[] => {
+      return items
+        .filter((item) => {
+          const key = item?.key as string;
+          return canAccessMenu(key);
+        })
+        .map((item) => {
+          if (item.children && Array.isArray(item.children)) {
+            const filteredChildren = filterMenuItems(item.children);
+            // 如果子菜单全部被过滤掉，则不显示父菜单
+            if (filteredChildren.length === 0) {
+              return null;
+            }
+            return { ...item, children: filteredChildren };
+          }
+          return item;
+        })
+        .filter(Boolean) as MenuItem[];
+    };
+    return filterMenuItems(allMenuItems);
+  }, [role, t]); // 依赖 role 变化时重新计算
 
-  const userMenu = (
-    <Menu onClick={({ key }) => {
-        if (key === 'logout') {
-            handleLogout();
-        }
-    }}>
-      <Menu.Item key="logout" icon={<LogoutOutlined />}>
-        {t('common.logout')}
-      </Menu.Item>
-    </Menu>
-  );
+  // 获取显示的用户名
+  const displayName = useMemo(() => {
+    if (userInfo?.displayName) return userInfo.displayName;
+    if (role === 'distributor') return '分销商';
+    return 'Admin';
+  }, [userInfo, role]);
+
+  const handleLogout = async () => {
+    // 直接执行退出
+    try {
+      await logoutApi();
+    } catch (error) {
+      console.error('Logout API failed:', error);
+    }
+
+    // 清除本地存储
+    logout();
+    message.success('退出成功');
+
+    // 跳转到登录页（使用完整路径强制刷新页面）
+    window.location.href = '/admin/login';
+  };
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -194,12 +217,20 @@ const MainLayout: React.FC = () => {
               ]}
               suffixIcon={<GlobalOutlined />}
             />
-            <Dropdown overlay={userMenu} placement="bottomRight">
-              <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                  <Avatar icon={<UserOutlined />} style={{ marginRight: 8 }} />
-                  <span>Admin</span>
-              </div>
-            </Dropdown>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <Avatar icon={<UserOutlined />} />
+              <span>{displayName}</span>
+              <span
+                style={{ cursor: 'pointer', padding: '4px 8px', display: 'flex', alignItems: 'center' }}
+                onClick={() => {
+                  console.log('Logout icon clicked');
+                  handleLogout();
+                }}
+                title={t('common.logout') || '退出登录'}
+              >
+                <LogoutOutlined style={{ fontSize: 16, color: '#999' }} />
+              </span>
+            </div>
           </div>
         </Header>
         <Content

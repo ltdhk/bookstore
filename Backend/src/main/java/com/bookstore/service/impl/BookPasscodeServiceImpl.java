@@ -63,12 +63,12 @@ public class BookPasscodeServiceImpl extends ServiceImpl<BookPasscodeRepository,
             return false;
         }
 
-        // Check valid period
+        // Check valid period (compare by date only, ignore time)
         LocalDateTime now = LocalDateTime.now();
-        if (bookPasscode.getValidFrom() != null && now.isBefore(bookPasscode.getValidFrom())) {
+        if (bookPasscode.getValidFrom() != null && now.toLocalDate().isBefore(bookPasscode.getValidFrom().toLocalDate())) {
             return false;
         }
-        if (bookPasscode.getValidTo() != null && now.isAfter(bookPasscode.getValidTo())) {
+        if (bookPasscode.getValidTo() != null && now.toLocalDate().isAfter(bookPasscode.getValidTo().toLocalDate())) {
             return false;
         }
 
@@ -127,12 +127,12 @@ public class BookPasscodeServiceImpl extends ServiceImpl<BookPasscodeRepository,
             return null;
         }
 
-        // Check valid period
+        // Check valid period (compare by date only, ignore time)
         LocalDateTime now = LocalDateTime.now();
-        if (bookPasscode.getValidFrom() != null && now.isBefore(bookPasscode.getValidFrom())) {
+        if (bookPasscode.getValidFrom() != null && now.toLocalDate().isBefore(bookPasscode.getValidFrom().toLocalDate())) {
             return null;
         }
-        if (bookPasscode.getValidTo() != null && now.isAfter(bookPasscode.getValidTo())) {
+        if (bookPasscode.getValidTo() != null && now.toLocalDate().isAfter(bookPasscode.getValidTo().toLocalDate())) {
             return null;
         }
 

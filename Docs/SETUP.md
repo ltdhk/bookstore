@@ -513,12 +513,12 @@ docker run -d \
   --name novelpop-backend \
   -p 8090:8090 \
   -e SPRING_PROFILES_ACTIVE=docker \
-  -e SPRING_DATASOURCE_URL="jdbc:mysql://your-db-host:3307/novelpop_db?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai" \
-  -e SPRING_DATASOURCE_USERNAME=your-db-username \
-  -e SPRING_DATASOURCE_PASSWORD=your-db-password \
-  -e AWS_ACCESS_KEY=your-aws-access-key \
-  -e AWS_SECRET_KEY=your-aws-secret-key \
-  -e APPLE_SHARED_SECRET=your-apple-shared-secret \
+  -e SPRING_DATASOURCE_URL="jdbc:mysql://<DB_HOST>:<DB_PORT>/novelpop_db?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai" \
+  -e SPRING_DATASOURCE_USERNAME=<DB_USERNAME> \
+  -e SPRING_DATASOURCE_PASSWORD=<DB_PASSWORD> \
+  -e AWS_ACCESS_KEY=<YOUR_AWS_ACCESS_KEY> \
+  -e AWS_SECRET_KEY=<YOUR_AWS_SECRET_KEY> \
+  -e APPLE_SHARED_SECRET=<YOUR_APPLE_SHARED_SECRET> \
   -v /home/ec2-user/docker/backend/logs:/app/logs \
   ltdhk/novelpop-backend:latest
 
@@ -531,8 +531,9 @@ docker rm novelpop-backend
 
 flutter build appbundle --release
 
+flutter build apk --release
+
 flutter run --release -d MQS0219815035438
 flutter logs -d MQS0219815035438
 
 
- mvn clean package -DskipTests

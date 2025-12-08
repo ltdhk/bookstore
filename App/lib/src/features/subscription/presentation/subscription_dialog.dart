@@ -7,7 +7,7 @@ import 'package:novelpop/src/features/subscription/data/models/subscription_prod
 import 'package:novelpop/src/features/subscription/providers/subscription_provider.dart';
 import 'package:novelpop/src/features/passcode/providers/passcode_provider.dart';
 import 'package:novelpop/src/features/passcode/data/passcode_api_service.dart';
-import 'package:novelpop/src/services/iap/platform_product_config.dart';
+import 'package:novelpop/src/features/passcode/data/models/passcode_context.dart';
 
 class SubscriptionDialog extends ConsumerStatefulWidget {
   final int? sourceBookId;
@@ -43,8 +43,12 @@ class _SubscriptionDialogState extends ConsumerState<SubscriptionDialog> {
       final available = await iapService.initialize();
 
       if (available) {
-        // Load available products from store
-        final productIds = PlatformProductConfig.getAllPlatformProductIds();
+        // Load available products from store using dynamic product IDs from API
+        final productIds = await ref.read(platformProductIdsProvider.future);
+        if (productIds.isEmpty) {
+          debugPrint('No platform product IDs found from API');
+          return;
+        }
         final products = await iapService.queryProducts(productIds);
 
         if (mounted) {
@@ -61,6 +65,34 @@ class _SubscriptionDialogState extends ConsumerState<SubscriptionDialog> {
     }
   }
 
+  /// 获取用于订阅跟踪的口令上下文
+  /// 优先匹配当前书籍，如果没有则使用最近访问的口令上下文
+  PasscodeContext? _getPasscodeContextForSubscription(
+    PasscodeContext? currentContext,
+    int? sourceBookId,
+  ) {
+    // 1. 如果有 sourceBookId，尝试精确匹配
+    if (sourceBookId != null && currentContext != null) {
+      if (currentContext.bookId == sourceBookId) {
+        debugPrint('Using exact match passcode context for book $sourceBookId');
+        return currentContext;
+      }
+    }
+
+    // 2. 如果没有 sourceBookId（如 Profile 页面），使用最近访问的口令上下文
+    if (sourceBookId == null && currentContext != null) {
+      final recentContext = ref
+          .read(activePasscodeContextProvider.notifier)
+          .getRecentPasscodeContext();
+      if (recentContext != null) {
+        debugPrint('Using recent passcode context for non-book subscription');
+        return recentContext;
+      }
+    }
+
+    return null;
+  }
+
   void _setupIAPCallbacks() {
     final iapService = ref.read(inAppPurchaseServiceProvider);
 
@@ -70,6 +102,12 @@ class _SubscriptionDialogState extends ConsumerState<SubscriptionDialog> {
     final passcodeApiService = ref.read(passcodeApiServiceProvider);
     final authNotifier = ref.read(authProvider.notifier);
     final sourceBookId = widget.sourceBookId;
+
+    // 预先计算口令上下文，用于订阅跟踪
+    final effectivePasscodeContext = _getPasscodeContextForSubscription(
+      passcodeContext,
+      sourceBookId,
+    );
 
     iapService.onPurchaseSuccess = (purchase) async {
       debugPrint('Purchase successful in dialog: ${purchase.productID}');
@@ -81,12 +119,8 @@ class _SubscriptionDialogState extends ConsumerState<SubscriptionDialog> {
         });
       }
 
-      // Get passcode context for tracking (使用预先获取的引用)
-      final int? passcodeId = (passcodeContext != null &&
-              sourceBookId != null &&
-              passcodeContext.bookId == sourceBookId)
-          ? passcodeContext.passcodeId
-          : null;
+      // Get passcode context for tracking (使用预先计算的口令上下文)
+      final int? passcodeId = effectivePasscodeContext?.passcodeId;
 
       // Track 'sub' action if subscription was via passcode
       if (passcodeId != null) {
@@ -536,8 +570,12 @@ class _SubscriptionDialogState extends ConsumerState<SubscriptionDialog> {
     try {
       final platform = getCurrentPlatform();
 
-      // Get platform-specific product ID
-      final platformProductId = PlatformProductConfig.getPlatformProductId(_selectedPlanType!);
+      // Get platform-specific product ID from API
+      final planToProductIdMap = await ref.read(planTypeToPlatformProductIdProvider.future);
+      final platformProductId = planToProductIdMap[_selectedPlanType!];
+      if (platformProductId == null) {
+        throw Exception('Platform product ID not found for plan type: $_selectedPlanType');
+      }
 
       // Get ProductDetails from IAP
       final productDetails = _iapProducts![platformProductId];
@@ -545,18 +583,15 @@ class _SubscriptionDialogState extends ConsumerState<SubscriptionDialog> {
         throw Exception('Product not found: $platformProductId');
       }
 
-      // Get passcode context if available and matches current book
+      // Get passcode context if available
+      // 优先匹配当前书籍，如果没有 sourceBookId 则使用最近访问的口令上下文
       final passcodeContext = ref.read(activePasscodeContextProvider);
-      final int? passcodeId = (passcodeContext != null &&
-              widget.sourceBookId != null &&
-              passcodeContext.bookId == widget.sourceBookId)
-          ? passcodeContext.passcodeId
-          : null;
-      final int? distributorId = (passcodeContext != null &&
-              widget.sourceBookId != null &&
-              passcodeContext.bookId == widget.sourceBookId)
-          ? passcodeContext.distributorId
-          : null;
+      final effectiveContext = _getPasscodeContextForSubscription(
+        passcodeContext,
+        widget.sourceBookId,
+      );
+      final int? passcodeId = effectiveContext?.passcodeId;
+      final int? distributorId = effectiveContext?.distributorId;
 
       // Get IAP service (callbacks already set up in initState)
       final iapService = ref.read(inAppPurchaseServiceProvider);

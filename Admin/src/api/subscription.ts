@@ -66,7 +66,7 @@ export const getSubscriptionOrders = (params: {
   status?: string;
   platform?: string;
   subscriptionPeriod?: string;
-  userId?: number;
+  username?: string;
   distributorId?: number;
   startDate?: string;
   endDate?: string;

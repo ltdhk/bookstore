@@ -1,6 +1,7 @@
 package com.bookstore.controller.admin;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bookstore.common.Result;
@@ -88,11 +89,20 @@ public class BookPasscodeController {
      * Create a passcode for a book
      */
     @PostMapping("/books/{bookId}/passcodes")
-    public Result<BookPasscodeDTO> createPasscode(@PathVariable Long bookId, @RequestBody BookPasscode passcode) {
+    public Result<BookPasscodeDTO> createPasscode(
+            @PathVariable Long bookId,
+            @RequestBody BookPasscode passcode,
+            @RequestAttribute(required = false) String role,
+            @RequestAttribute(required = false) Long distributorId) {
         // Validate book exists
         Book book = bookService.getById(bookId);
         if (book == null) {
             return Result.error("Book not found");
+        }
+
+        // 如果是分销商登录，强制使用当前分销商ID
+        if ("distributor".equals(role) && distributorId != null) {
+            passcode.setDistributorId(distributorId);
         }
 
         // Validate distributor exists
@@ -136,18 +146,45 @@ public class BookPasscodeController {
      * Update a passcode
      */
     @PutMapping("/passcodes/{id}")
-    public Result<BookPasscodeDTO> updatePasscode(@PathVariable Long id, @RequestBody BookPasscode passcode) {
+    public Result<BookPasscodeDTO> updatePasscode(
+            @PathVariable Long id,
+            @RequestBody BookPasscode passcode,
+            @RequestAttribute(required = false) String role,
+            @RequestAttribute(required = false) Long distributorId) {
         BookPasscode existing = passcodeService.getById(id);
         if (existing == null || existing.getDeleted()) {
             return Result.error("Passcode not found");
         }
 
-        // Don't allow changing the passcode itself
-        passcode.setPasscode(existing.getPasscode());
+        // 如果是分销商登录，强制保持原来的 distributorId 不变（或只能是自己的）
+        if ("distributor".equals(role) && distributorId != null) {
+            // 分销商不能修改不属于自己的口令
+            if (!distributorId.equals(existing.getDistributorId())) {
+                return Result.error("无权修改此口令");
+            }
+            // 强制保持 distributorId 不变
+            passcode.setDistributorId(distributorId);
+        }
 
-        passcode.setId(id);
-        passcode.setUpdatedAt(LocalDateTime.now());
-        passcodeService.updateById(passcode);
+        // Update fields on existing entity to preserve non-null values and allow null updates
+        existing.setDistributorId(passcode.getDistributorId() != null ? passcode.getDistributorId() : existing.getDistributorId());
+        existing.setName(passcode.getName());
+        existing.setStatus(passcode.getStatus() != null ? passcode.getStatus() : existing.getStatus());
+        // Explicitly set validFrom/validTo to allow clearing (null values)
+        existing.setValidFrom(passcode.getValidFrom());
+        existing.setValidTo(passcode.getValidTo());
+        existing.setUpdatedAt(LocalDateTime.now());
+
+        // Use UpdateWrapper to update including null values for validFrom/validTo
+        UpdateWrapper<BookPasscode> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.eq("id", id)
+                .set("distributor_id", existing.getDistributorId())
+                .set("name", existing.getName())
+                .set("status", existing.getStatus())
+                .set("valid_from", existing.getValidFrom())
+                .set("valid_to", existing.getValidTo())
+                .set("updated_at", existing.getUpdatedAt());
+        passcodeService.update(updateWrapper);
 
         // Get updated data
         BookPasscode updated = passcodeService.getById(id);

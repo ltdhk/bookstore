@@ -51,7 +51,7 @@ final class ActivePasscodeContextProvider
 }
 
 String _$activePasscodeContextHash() =>
-    r'a0c1ed306566708c874588b5939548d1a95941b1';
+    r'bdc12a210c0afb58c9dc62b219c708bc544f072d';
 
 /// Global passcode context provider.
 /// Stores the currently active passcode context for tracking.

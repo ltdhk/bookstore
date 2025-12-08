@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bookstore.common.Result;
+import com.bookstore.dto.SubscriptionOrderDetailDTO;
+import com.bookstore.dto.SubscriptionOrderListDTO;
 import com.bookstore.dto.SubscriptionProductDTO;
 import com.bookstore.entity.Distributor;
 import com.bookstore.entity.Order;
@@ -38,56 +40,40 @@ public class SubscriptionManagementController {
     private final DistributorRepository distributorRepository;
 
     /**
-     * Get subscription orders list with pagination and filters
+     * Get subscription orders list with pagination and filters (使用 JOIN 查询关联用户名和分销商名称)
      */
     @GetMapping
-    public Result<IPage<Order>> getSubscriptionOrders(
+    public Result<Map<String, Object>> getSubscriptionOrders(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "20") Integer size,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String platform,
             @RequestParam(required = false) String subscriptionPeriod,
-            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) String username,
             @RequestParam(required = false) Long distributorId,
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate) {
         try {
-            Page<Order> pageParam = new Page<>(page, size);
-            QueryWrapper<Order> queryWrapper = new QueryWrapper<>();
+            int offset = (page - 1) * size;
 
-            queryWrapper.eq("order_type", "subscription");
+            // 使用 JOIN 查询获取列表数据（包含用户名和分销商名称）
+            List<SubscriptionOrderListDTO> records = orderRepository.selectSubscriptionOrderList(
+                    status, platform, subscriptionPeriod, username, distributorId,
+                    startDate, endDate, size, offset);
 
-            if (status != null && !status.isEmpty()) {
-                queryWrapper.eq("status", status);
-            }
+            // 获取总数
+            long total = orderRepository.countSubscriptionOrders(
+                    status, platform, subscriptionPeriod, username, distributorId,
+                    startDate, endDate);
 
-            if (platform != null && !platform.isEmpty()) {
-                queryWrapper.eq("platform", platform);
-            }
+            // 构建分页结果
+            Map<String, Object> result = new HashMap<>();
+            result.put("records", records);
+            result.put("total", total);
+            result.put("size", size);
+            result.put("current", page);
+            result.put("pages", (total + size - 1) / size);
 
-            if (subscriptionPeriod != null && !subscriptionPeriod.isEmpty()) {
-                queryWrapper.eq("subscription_period", subscriptionPeriod);
-            }
-
-            if (userId != null) {
-                queryWrapper.eq("user_id", userId);
-            }
-
-            if (distributorId != null) {
-                queryWrapper.eq("distributor_id", distributorId);
-            }
-
-            if (startDate != null && !startDate.isEmpty()) {
-                queryWrapper.ge("create_time", startDate);
-            }
-
-            if (endDate != null && !endDate.isEmpty()) {
-                queryWrapper.le("create_time", endDate);
-            }
-
-            queryWrapper.orderByDesc("create_time");
-
-            IPage<Order> result = orderRepository.selectPage(pageParam, queryWrapper);
             return Result.success(result);
         } catch (Exception e) {
             return Result.error("Failed to get subscription orders: " + e.getMessage());
@@ -95,26 +81,17 @@ public class SubscriptionManagementController {
     }
 
     /**
-     * Get subscription order details
+     * Get subscription order details (使用 JOIN 查询减少数据库查询次数)
      */
     @GetMapping("/{id}")
-    public Result<Map<String, Object>> getSubscriptionDetail(@PathVariable Long id) {
+    public Result<SubscriptionOrderDetailDTO> getSubscriptionDetail(@PathVariable Long id) {
         try {
-            Order order = orderRepository.selectById(id);
-            if (order == null || !"subscription".equals(order.getOrderType())) {
+            // 使用单次 JOIN 查询获取订单详情及关联的分销商、通行证、书籍名称
+            SubscriptionOrderDetailDTO detail = orderRepository.selectSubscriptionOrderDetail(id);
+
+            if (detail == null || !"subscription".equals(detail.getOrderType())) {
                 return Result.error("Subscription order not found");
             }
-
-            // Get user info
-            User user = userMapper.selectById(order.getUserId());
-
-            // Get product info
-            SubscriptionProduct product = subscriptionService.getProductByProductId(order.getProductId());
-
-            Map<String, Object> detail = new HashMap<>();
-            detail.put("order", order);
-            detail.put("user", user);
-            detail.put("product", product);
 
             return Result.success(detail);
         } catch (Exception e) {

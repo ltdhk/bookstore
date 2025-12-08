@@ -6,9 +6,13 @@ import com.bookstore.dto.BookImportDTO;
 import com.bookstore.dto.ChapterImportDTO;
 import com.bookstore.dto.ImportDataDTO;
 import com.bookstore.dto.ImportResultDTO;
+import com.bookstore.dto.LanguageReferenceDTO;
+import com.bookstore.dto.StatusReferenceDTO;
 import com.bookstore.entity.BookCategory;
+import com.bookstore.entity.Language;
 import com.bookstore.entity.Tag;
 import com.bookstore.repository.BookCategoryRepository;
+import com.bookstore.repository.LanguageRepository;
 import com.bookstore.repository.TagRepository;
 import com.bookstore.service.BookImportService;
 import com.bookstore.service.CacheService;
@@ -34,6 +38,7 @@ public class BookImportController {
     private final BookImportService importService;
     private final BookCategoryRepository categoryRepository;
     private final TagRepository tagRepository;
+    private final LanguageRepository languageRepository;
     private final CacheService cacheService;
 
     @GetMapping("/template")
@@ -76,6 +81,23 @@ public class BookImportController {
         // Get all tags for reference
         List<Tag> tags = tagRepository.selectList(null);
 
+        // Get all languages for reference
+        List<Language> languages = languageRepository.selectList(null);
+        List<LanguageReferenceDTO> languageRefs = languages.stream()
+                .map(lang -> new LanguageReferenceDTO(lang.getCode(), lang.getName()))
+                .toList();
+
+        // Create status reference list
+        List<StatusReferenceDTO> statusRefs = new ArrayList<>();
+        statusRefs.add(new StatusReferenceDTO("published", "已发布"));
+        statusRefs.add(new StatusReferenceDTO("draft", "草稿"));
+        statusRefs.add(new StatusReferenceDTO("archived", "已归档"));
+
+        // Create completion status reference list
+        List<StatusReferenceDTO> completionStatusRefs = new ArrayList<>();
+        completionStatusRefs.add(new StatusReferenceDTO("ongoing", "连载中"));
+        completionStatusRefs.add(new StatusReferenceDTO("completed", "已完结"));
+
         // Write Excel with multiple sheets
         EasyExcel.write(response.getOutputStream())
                 .autoCloseStream(Boolean.FALSE)
@@ -85,6 +107,9 @@ public class BookImportController {
                 .write(chapterSamples, EasyExcel.writerSheet(1, "章节信息").head(ChapterImportDTO.class).build())
                 .write(categories, EasyExcel.writerSheet(2, "分类列表(参考)").head(BookCategory.class).build())
                 .write(tags, EasyExcel.writerSheet(3, "标签列表(参考)").head(Tag.class).build())
+                .write(languageRefs, EasyExcel.writerSheet(4, "语言列表(参考)").head(LanguageReferenceDTO.class).build())
+                .write(statusRefs, EasyExcel.writerSheet(5, "状态(参考)").head(StatusReferenceDTO.class).build())
+                .write(completionStatusRefs, EasyExcel.writerSheet(6, "完结状态(参考)").head(StatusReferenceDTO.class).build())
                 .finish();
     }
 

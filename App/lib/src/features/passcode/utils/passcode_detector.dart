@@ -1,9 +1,9 @@
 /// Utility class to detect if a string is a passcode.
-/// Passcode format: starts with "KL" followed by 8 alphanumeric characters.
+/// Passcode format: starts with "KL" followed by 4 digits (0000-9999).
 class PasscodeDetector {
-  /// Passcode pattern: starts with "KL" followed by 8 alphanumeric characters
+  /// Passcode pattern: starts with "KL" followed by 4 digits
   static final RegExp _passcodePattern =
-      RegExp(r'^KL[A-Z0-9]{8}$', caseSensitive: false);
+      RegExp(r'^KL[0-9]{4}$', caseSensitive: false);
 
   /// Check if the input looks like a passcode
   static bool isPasscode(String input) {

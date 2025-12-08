@@ -1,14 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { Spin } from 'antd';
+import { useUserStore } from '../store/userStore';
+import { MENU_PERMISSIONS } from '../config/permissions';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  requiredPermissions?: string[];
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredPermissions }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const location = useLocation();
+  const { permissions, logout } = useUserStore();
 
   useEffect(() => {
     checkAuth();
@@ -29,7 +33,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       const tokenParts = token.split('.');
       if (tokenParts.length !== 3) {
         // 无效的JWT格式
-        localStorage.removeItem('admin_token');
+        logout();
         setIsAuthenticated(false);
         return;
       }
@@ -40,7 +44,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
       if (payload.exp && payload.exp < currentTime) {
         // Token已过期
-        localStorage.removeItem('admin_token');
+        logout();
         setIsAuthenticated(false);
         return;
       }
@@ -48,7 +52,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       setIsAuthenticated(true);
     } catch (error) {
       // Token解析失败
-      localStorage.removeItem('admin_token');
+      logout();
       setIsAuthenticated(false);
     }
   };
@@ -72,7 +76,19 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // 已登录，渲染子组件
+  // 检查路由权限
+  // 如果指定了 requiredPermissions，使用它；否则使用路径对应的权限
+  const permsToCheck = requiredPermissions || MENU_PERMISSIONS[location.pathname];
+  if (permsToCheck && permsToCheck.length > 0) {
+    // 检查是否有任意一个权限
+    const hasAccess = permissions.includes('*') || permsToCheck.some(p => permissions.includes(p));
+    if (!hasAccess) {
+      // 无权限，重定向到首页
+      return <Navigate to="/" replace />;
+    }
+  }
+
+  // 已登录且有权限，渲染子组件
   return <>{children}</>;
 };
 

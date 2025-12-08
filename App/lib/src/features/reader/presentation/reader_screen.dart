@@ -9,6 +9,7 @@ import 'package:screen_brightness/screen_brightness.dart';
 
 import 'package:novelpop/src/features/settings/data/theme_provider.dart';
 import 'package:novelpop/src/features/reader/providers/chapter_provider.dart';
+import 'package:novelpop/src/features/reader/providers/chapter_cache_provider.dart';
 import 'package:novelpop/src/features/reader/data/models/chapter_vo.dart';
 import 'package:novelpop/src/features/reader/data/reading_progress_service.dart';
 import 'package:novelpop/src/features/bookshelf/providers/bookshelf_provider.dart';
@@ -27,23 +28,33 @@ class ReaderScreen extends ConsumerStatefulWidget {
 }
 
 class _ReaderScreenState extends ConsumerState<ReaderScreen> {
+  // Reader settings
   double _fontSize = 18.0;
   Color _backgroundColor = Colors.white;
   double _brightness = 0.5;
   bool _eyeProtectionMode = false;
   bool _showToolbars = true;
   bool _isInBookshelf = false;
+  bool _isChaptersSortedAscending = true;
+
+  // Scroll management
   final ScrollController _scrollController = ScrollController();
   final ReadingProgressService _progressService = ReadingProgressService();
   Timer? _saveProgressTimer;
+
+  // State flags
   bool _isRestoringScroll = false;
-  bool _hasLoadedProgress = false;
-  bool _isChaptersSortedAscending = true;
-  bool _hasAutoNavigated = false; // Flag to prevent multiple auto-navigations
-  bool _isLoadingNextChapter = false; // Flag for loading next chapter at bottom
-  ChapterVO? _cachedChapter; // Cache current chapter content
-  int _cachedChapterIndex = -1; // Cache current chapter index
-  final Set<int> _preloadedChapters = {}; // Track preloaded chapters to avoid duplicate requests
+  bool _shouldRestoreScrollPosition = true;
+  bool _isInitialized = false;
+
+  // Chapter boundary tracking for seamless scrolling
+  final Map<int, GlobalKey> _chapterKeys = {};
+  final Map<int, double> _chapterHeights = {};
+  int _visibleCenterChapter = 0;
+
+  // Debounce for chapter detection to prevent oscillation
+  Timer? _chapterDetectionDebounce;
+  int _lastDetectedChapter = -1;
 
   final double _defaultFontSize = 18.0;
 
@@ -62,13 +73,25 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     _trackPasscodeUsage();
   }
 
+  @override
+  void dispose() {
+    _saveProgressTimer?.cancel();
+    _chapterDetectionDebounce?.cancel();
+    _saveCurrentProgress();
+    _scrollController.removeListener(_handleScroll);
+    _scrollController.dispose();
+    _resetScreenBrightness();
+    super.dispose();
+  }
+
   /// Track passcode 'open' action when opening a book via passcode
   Future<void> _trackPasscodeUsage() async {
     final bookId = int.parse(widget.bookId);
     final passcodeContext = ref.read(activePasscodeContextProvider);
 
-    // Only track if this book was opened via passcode
     if (passcodeContext != null && passcodeContext.bookId == bookId) {
+      ref.read(activePasscodeContextProvider.notifier).updateLastAccessed(bookId);
+
       try {
         final prefs = await SharedPreferences.getInstance();
         final userIdStr = prefs.getString('user_id');
@@ -77,59 +100,16 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         await apiService.trackOpen(passcodeId: passcodeContext.passcodeId, userId: userId);
         debugPrint('Passcode open action tracked for book $bookId, userId: $userId');
       } catch (e) {
-        // Log error but don't block user from reading
         debugPrint('Failed to track passcode open: $e');
       }
     }
   }
 
-  /// Check if book is in bookshelf (from local storage)
   void _checkBookshelfStatus() {
-    // Use local bookshelf provider to check status
     final isInShelf = ref.read(isBookInBookshelfProvider(widget.bookId));
     setState(() {
       _isInBookshelf = isInShelf;
     });
-  }
-
-  /// Load saved reading progress and restore position
-  Future<void> _loadReadingProgress() async {
-    if (_hasLoadedProgress) return;
-    _hasLoadedProgress = true;
-
-    final bookId = int.parse(widget.bookId);
-    final progress = await _progressService.getReadingProgress(bookId);
-
-    if (progress != null && mounted) {
-      // Set the current chapter index
-      ref.read(currentChapterIndexProvider.notifier).setIndex(progress.chapterIndex);
-    }
-  }
-
-  /// Restore scroll position after content is rendered
-  Future<void> _restoreScrollPosition() async {
-    if (_isRestoringScroll) return;
-
-    final bookId = int.parse(widget.bookId);
-    final progress = await _progressService.getReadingProgress(bookId);
-
-    if (progress != null && mounted && _scrollController.hasClients) {
-      _isRestoringScroll = true;
-
-      // Wait for next frame to ensure content is rendered
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _scrollController.hasClients) {
-          _scrollController.jumpTo(progress.scrollOffset);
-
-          // Reset flag after a short delay
-          Future.delayed(const Duration(milliseconds: 500), () {
-            if (mounted) {
-              _isRestoringScroll = false;
-            }
-          });
-        }
-      });
-    }
   }
 
   Future<void> _loadReaderSettings() async {
@@ -140,18 +120,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     setState(() {
       _fontSize = prefs.getDouble('reader_font_size') ?? 18.0;
       _eyeProtectionMode = savedEyeProtection;
-
-      // Load background color
       final colorIndex = prefs.getInt('reader_background_color') ?? 0;
       _backgroundColor = _getBackgroundColorByIndex(colorIndex);
     });
 
-    // Apply saved brightness or get current system brightness
     if (savedBrightness != null) {
       _brightness = savedBrightness;
       await _setScreenBrightness(savedBrightness);
     } else {
-      // Get current system brightness
       try {
         _brightness = await ScreenBrightness().current;
       } catch (e) {
@@ -159,13 +135,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       }
     }
 
-    // Apply eye protection mode if enabled
     if (_eyeProtectionMode) {
       _applyEyeProtectionMode(true);
     }
   }
 
-  /// Set screen brightness using screen_brightness package
   Future<void> _setScreenBrightness(double brightness) async {
     try {
       await ScreenBrightness().setScreenBrightness(brightness);
@@ -174,7 +148,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     }
   }
 
-  /// Reset screen brightness to system default
   Future<void> _resetScreenBrightness() async {
     try {
       await ScreenBrightness().resetScreenBrightness();
@@ -183,19 +156,16 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     }
   }
 
-  /// Apply eye protection mode (warm color overlay)
   void _applyEyeProtectionMode(bool enable) {
     if (enable) {
-      // When eye protection is on, use a warm yellowish background
       setState(() {
         if (_backgroundColor == Colors.white) {
-          _backgroundColor = const Color(0xFFF5F0E1); // Warm white
+          _backgroundColor = const Color(0xFFF5F0E1);
         } else if (_backgroundColor == Colors.black) {
-          _backgroundColor = const Color(0xFF1A1A14); // Warm black
+          _backgroundColor = const Color(0xFF1A1A14);
         }
       });
     } else {
-      // Restore original background color
       _loadBackgroundColorFromPrefs();
     }
   }
@@ -221,11 +191,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       case 0:
         return Colors.white;
       case 1:
-        return const Color(0xFFE8E8E8); // Light Gray
+        return const Color(0xFFE8E8E8);
       case 2:
-        return const Color(0xFFC8E6C9); // Green
+        return const Color(0xFFC8E6C9);
       case 3:
-        return const Color(0xFFB3D9FF); // Blue
+        return const Color(0xFFB3D9FF);
       case 4:
         return Colors.black;
       default:
@@ -242,19 +212,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     return 0;
   }
 
-  @override
-  void dispose() {
-    _saveProgressTimer?.cancel();
-    _saveCurrentProgress();
-    _scrollController.removeListener(_handleScroll);
-    _scrollController.dispose();
-    // Reset screen brightness to system default when leaving reader
-    _resetScreenBrightness();
-    super.dispose();
-  }
-
   void _handleScroll() {
-    // Hide toolbars when scrolling
     if (_scrollController.position.isScrollingNotifier.value) {
       if (_showToolbars) {
         setState(() {
@@ -263,7 +221,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       }
     }
 
-    // Skip saving if we're restoring scroll position
     if (_isRestoringScroll) return;
 
     // Debounce save progress
@@ -272,24 +229,59 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       _saveCurrentProgress();
     });
 
-    // Check if scrolled to bottom and auto-navigate to next chapter
-    if (_scrollController.hasClients) {
-      final position = _scrollController.position;
-      final scrollPercentage = position.pixels / position.maxScrollExtent;
+    // Detect current visible chapter and update center
+    _detectVisibleChapter();
+  }
 
-      // Pre-load next chapter when scrolled 85%
-      if (scrollPercentage > 0.85) {
-        _preloadNextChapter();
-      }
+  /// Detect which chapter is currently visible and update cache center
+  void _detectVisibleChapter() {
+    if (!_scrollController.hasClients || _chapterHeights.isEmpty) return;
 
-      // Auto-navigate to next chapter when scrolled to bottom (99%)
-      if (scrollPercentage > 0.99 && !_hasAutoNavigated) {
-        _autoNavigateToNextChapter();
+    final scrollOffset = _scrollController.offset;
+    final viewportHeight = _scrollController.position.viewportDimension;
+    final viewportCenter = scrollOffset + viewportHeight / 2;
+
+    // Find which chapter contains the viewport center
+    double accumulatedHeight = 0;
+    int? detectedChapter;
+
+    final sortedIndices = _chapterHeights.keys.toList()..sort();
+    for (final index in sortedIndices) {
+      final height = _chapterHeights[index] ?? 0;
+      if (viewportCenter >= accumulatedHeight && viewportCenter < accumulatedHeight + height) {
+        detectedChapter = index;
+        break;
       }
+      accumulatedHeight += height;
+    }
+
+    // Only update if detection is stable (same chapter detected)
+    if (detectedChapter != null && detectedChapter != _visibleCenterChapter) {
+      // Debounce chapter detection to prevent oscillation
+      _chapterDetectionDebounce?.cancel();
+      _chapterDetectionDebounce = Timer(const Duration(milliseconds: 300), () {
+        if (!mounted) return;
+
+        // Re-check if still the same chapter after debounce
+        if (detectedChapter == _lastDetectedChapter && detectedChapter != _visibleCenterChapter) {
+          _visibleCenterChapter = detectedChapter!;
+          ref.read(currentChapterIndexProvider.notifier).setIndex(detectedChapter);
+
+          // Update chapter cache center (only for preloading, don't change render window)
+          final bookId = int.parse(widget.bookId);
+          final readerDataAsync = ref.read(readerDataProvider(bookId));
+          readerDataAsync.whenData((readerData) {
+            ref.read(chapterCacheProvider(bookId).notifier).updateCenter(detectedChapter!, readerData);
+          });
+
+          debugPrint('Detected visible chapter: $detectedChapter');
+        }
+      });
+
+      _lastDetectedChapter = detectedChapter;
     }
   }
 
-  /// Save current reading progress
   Future<void> _saveCurrentProgress() async {
     if (!mounted || !_scrollController.hasClients) return;
 
@@ -300,247 +292,183 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       final currentIndex = ref.read(currentChapterIndexProvider);
       if (currentIndex >= 0 && currentIndex < readerData.chapters.length) {
         final currentChapter = readerData.chapters[currentIndex];
+
+        // Calculate scroll offset within current chapter
+        double chapterOffset = _scrollController.offset;
+        final sortedIndices = _chapterHeights.keys.toList()..sort();
+        for (final index in sortedIndices) {
+          if (index >= currentIndex) break;
+          chapterOffset -= _chapterHeights[index] ?? 0;
+        }
+
         await _progressService.saveReadingProgress(
           bookId: bookId,
           chapterIndex: currentIndex,
           chapterId: currentChapter.id,
-          scrollOffset: _scrollController.offset,
+          scrollOffset: chapterOffset.clamp(0, double.infinity),
         );
       }
     });
   }
 
-  /// Pre-load next chapter in background (with deduplication)
-  void _preloadNextChapter() {
+  /// Initialize chapter cache with saved progress
+  Future<void> _initializeChapterCache(ReaderData readerData) async {
+    if (_isInitialized) return;
+    _isInitialized = true;
+
+    debugPrint('ReaderScreen: Initializing chapter cache');
+
     final bookId = int.parse(widget.bookId);
-    final currentIndex = ref.read(currentChapterIndexProvider);
-    final nextIndex = currentIndex + 1;
+    final progress = await _progressService.getReadingProgress(bookId);
 
-    // Skip if already preloaded to avoid duplicate requests
-    if (_preloadedChapters.contains(nextIndex)) return;
-    _preloadedChapters.add(nextIndex);
+    int startIndex = 0;
+    if (progress != null) {
+      startIndex = progress.chapterIndex.clamp(0, readerData.chapters.length - 1);
+    }
 
-    // Pre-load next chapter content (ignore result)
-    ref.read(chapterContentProvider(bookId, nextIndex).future).ignore();
+    _visibleCenterChapter = startIndex;
+    ref.read(currentChapterIndexProvider.notifier).setIndex(startIndex);
+    await ref.read(chapterCacheProvider(bookId).notifier).initializeAt(startIndex, readerData);
+
+    // Restore scroll position after a short delay
+    if (_shouldRestoreScrollPosition && progress != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _restoreScrollPosition(startIndex, progress.scrollOffset);
+      });
+    }
   }
 
-  /// Auto-navigate to next chapter when scrolled to bottom
-  void _autoNavigateToNextChapter() {
-    // Prevent multiple auto-navigations
-    if (_hasAutoNavigated) return;
+  /// Reinitialize after subscription success - reset state and reload
+  void _reinitializeAfterSubscription() {
+    final bookId = int.parse(widget.bookId);
+
+    // Reset local state
+    setState(() {
+      _isInitialized = false;
+      _chapterKeys.clear();
+      _chapterHeights.clear();
+      _lastDetectedChapter = -1;
+    });
+
+    // Invalidate providers to refresh data
+    ref.invalidate(readerDataProvider(bookId));
+    ref.invalidate(chapterCacheProvider(bookId));
+
+    debugPrint('ReaderScreen: Reinitialized after subscription');
+  }
+
+  /// Restore scroll position to saved chapter and offset
+  Future<void> _restoreScrollPosition(int chapterIndex, double chapterOffset) async {
+    if (!mounted || !_scrollController.hasClients) return;
+    _isRestoringScroll = true;
+
+    // Wait for layout to complete
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    if (!mounted || !_scrollController.hasClients) {
+      _isRestoringScroll = false;
+      return;
+    }
+
+    // Calculate absolute scroll position
+    double absoluteOffset = 0;
+    final sortedIndices = _chapterHeights.keys.toList()..sort();
+    for (final index in sortedIndices) {
+      if (index >= chapterIndex) break;
+      absoluteOffset += _chapterHeights[index] ?? 0;
+    }
+    absoluteOffset += chapterOffset;
+
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final targetOffset = absoluteOffset.clamp(0.0, maxScroll);
+
+    _scrollController.jumpTo(targetOffset);
+    _shouldRestoreScrollPosition = false;
+
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        _isRestoringScroll = false;
+      }
+    });
+  }
+
+  /// Navigate to a specific chapter from chapter list
+  void _navigateToChapter(int chapterIndex) {
+    debugPrint('Navigating to chapter index: $chapterIndex');
+    _saveCurrentProgress();
+    _shouldRestoreScrollPosition = false;
+
+    // Calculate scroll position for target chapter
+    double targetOffset = 0;
+    final sortedIndices = _chapterHeights.keys.toList()..sort();
+    for (final index in sortedIndices) {
+      if (index >= chapterIndex) break;
+      targetOffset += _chapterHeights[index] ?? 0;
+    }
+
+    // Smooth scroll to chapter
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        targetOffset.clamp(0.0, _scrollController.position.maxScrollExtent),
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+
+    // Update state
+    _visibleCenterChapter = chapterIndex;
+    ref.read(currentChapterIndexProvider.notifier).setIndex(chapterIndex);
 
     final bookId = int.parse(widget.bookId);
     final readerDataAsync = ref.read(readerDataProvider(bookId));
-
     readerDataAsync.whenData((readerData) {
-      final currentIndex = ref.read(currentChapterIndexProvider);
-      final chapters = readerData.chapters;
-
-      // Check if there's a next chapter
-      if (currentIndex < chapters.length - 1) {
-        final nextChapter = chapters[currentIndex + 1];
-
-        // If user can access next chapter, auto-navigate to it
-        if (nextChapter.canAccess ?? nextChapter.isFree) {
-          setState(() {
-            _hasAutoNavigated = true;
-          });
-          _navigateToChapter(currentIndex + 1);
-        }
-        // If next chapter is locked, stay on current chapter (membership UI will show)
-        // Don't auto-navigate to avoid interrupting the user
-      }
+      ref.read(chapterCacheProvider(bookId).notifier).updateCenter(chapterIndex, readerData);
     });
-  }
-
-  /// Navigate to a specific chapter
-  void _navigateToChapter(int chapterIndex) {
-    // Save current progress before switching
-    _saveCurrentProgress();
-
-    // Set loading state for bottom loading indicator
-    setState(() {
-      _isLoadingNextChapter = true;
-      _hasAutoNavigated = false;
-    });
-
-    // Update current chapter index
-    ref.read(currentChapterIndexProvider.notifier).setIndex(chapterIndex);
-
-    // Reset scroll to top after a short delay to allow new content to load
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (mounted && _scrollController.hasClients) {
-        _scrollController.jumpTo(0);
-      }
-    });
-
-    // Pre-load adjacent chapters
-    _preloadAdjacentChapters(chapterIndex);
-  }
-
-  /// Check if the current chapter is the last accessible chapter
-  bool _isLastFreeChapter(List<ChapterVO> chapters, int currentIndex) {
-    if (currentIndex < 0 || currentIndex >= chapters.length) return false;
-
-    final currentChapter = chapters[currentIndex];
-
-    // If current chapter is not accessible, it's not the last accessible chapter
-    final canAccessCurrent = currentChapter.canAccess ?? currentChapter.isFree;
-    if (!canAccessCurrent) return false;
-
-    // Check if there's a next chapter and it's not accessible
-    if (currentIndex < chapters.length - 1) {
-      final nextChapter = chapters[currentIndex + 1];
-      final canAccessNext = nextChapter.canAccess ?? nextChapter.isFree;
-      return !canAccessNext;
-    }
-
-    return false;
-  }
-
-  /// Find the last accessible chapter index
-  int _findLastFreeChapterIndex(List<ChapterVO> chapters) {
-    for (int i = chapters.length - 1; i >= 0; i--) {
-      final canAccess = chapters[i].canAccess ?? chapters[i].isFree;
-      if (canAccess) {
-        return i;
-      }
-    }
-    return 0; // Return first chapter if no accessible chapters found
-  }
-
-  /// Pre-load previous and next chapters (with deduplication)
-  void _preloadAdjacentChapters(int currentIndex) {
-    final bookId = int.parse(widget.bookId);
-    final nextIndex = currentIndex + 1;
-    final prevIndex = currentIndex - 1;
-
-    // Pre-load next chapter (ignore result) - skip if already preloaded
-    if (!_preloadedChapters.contains(nextIndex)) {
-      _preloadedChapters.add(nextIndex);
-      ref.read(chapterContentProvider(bookId, nextIndex).future).ignore();
-    }
-
-    // Pre-load previous chapter (ignore result) - skip if already preloaded
-    if (prevIndex >= 0 && !_preloadedChapters.contains(prevIndex)) {
-      _preloadedChapters.add(prevIndex);
-      ref.read(chapterContentProvider(bookId, prevIndex).future).ignore();
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Fetch all reader data at once
     final readerDataAsync = ref.watch(readerDataProvider(int.parse(widget.bookId)));
-
-    // Use theme for non-reading areas
     final theme = Theme.of(context);
     final isDarkTheme = theme.brightness == Brightness.dark;
-
-    // Use custom background color for reading area
     final isReadingBgDark = _backgroundColor == Colors.black;
     final readingTextColor = isReadingBgDark ? Colors.white : Colors.black;
 
     return readerDataAsync.when(
-      loading: () => Scaffold(
-        backgroundColor: _backgroundColor,
-        body: SafeArea(
-          child: Column(
-            children: [
-              // Top bar
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-                decoration: BoxDecoration(
-                  color: _backgroundColor,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: Icon(Icons.arrow_back, color: readingTextColor),
-                      onPressed: () => context.pop(),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Loading...',
-                        style: TextStyle(
-                          color: readingTextColor,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Loading area
-              Expanded(
-                child: Center(
-                  child: CircularProgressIndicator(
-                    color: readingTextColor,
-                  ),
-                ),
-              ),
-              // Bottom toolbar placeholder with disabled icons
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                decoration: BoxDecoration(
-                  color: _backgroundColor,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 4,
-                      offset: const Offset(0, -2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    Icon(
-                      Icons.format_list_bulleted,
-                      color: readingTextColor.withValues(alpha: 0.3),
-                      size: 28,
-                    ),
-                    Icon(
-                      Icons.text_fields,
-                      color: readingTextColor.withValues(alpha: 0.3),
-                      size: 28,
-                    ),
-                    Icon(
-                      Icons.dark_mode,
-                      color: readingTextColor.withValues(alpha: 0.3),
-                      size: 28,
-                    ),
-                    Icon(
-                      Icons.collections_bookmark_outlined,
-                      color: readingTextColor.withValues(alpha: 0.3),
-                      size: 28,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      error: (error, stack) => Scaffold(
-        backgroundColor: _backgroundColor,
-        body: Center(
-          child: Text(
-            'Error loading book: $error',
-            style: TextStyle(color: readingTextColor),
-          ),
-        ),
-      ),
+      loading: () => _buildLoadingView(readingTextColor),
+      error: (error, stack) => _buildErrorView(error, readingTextColor),
       data: (readerData) => _buildReaderContent(context, readerData, isDarkTheme, isReadingBgDark, readingTextColor),
+    );
+  }
+
+  Widget _buildLoadingView(Color readingTextColor) {
+    return Scaffold(
+      backgroundColor: _backgroundColor,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildTopBar(readingTextColor, 'Loading...'),
+            Expanded(
+              child: Center(
+                child: CircularProgressIndicator(color: readingTextColor),
+              ),
+            ),
+            _buildBottomToolbarPlaceholder(readingTextColor, []),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorView(Object error, Color readingTextColor) {
+    return Scaffold(
+      backgroundColor: _backgroundColor,
+      body: Center(
+        child: Text(
+          'Error loading book: $error',
+          style: TextStyle(color: readingTextColor),
+        ),
+      ),
     );
   }
 
@@ -555,197 +483,31 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     final chapters = readerData.chapters;
     final bookId = int.parse(widget.bookId);
 
-    // Cache book info for bookshelf operations
     _bookTitle = book.title;
     _bookAuthor = book.author;
     _bookCoverUrl = book.coverUrl;
     _bookCategory = book.category ?? 'General';
 
-    // Check if there are no chapters
     if (chapters.isEmpty) {
-      return _buildEmptyChaptersView(context, book, isDarkTheme, isReadingBgDark, readingTextColor);
+      return _buildEmptyChaptersView(context, book, readingTextColor);
     }
 
-    // Load reading progress and add to reading history on first build
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadReadingProgress();
-      // Add to reading history
-      ref.read(readingHistoryProvider.notifier).addOrUpdateHistory(
-            bookId: widget.bookId,
-            title: book.title,
-            author: book.author,
-            coverUrl: book.coverUrl,
-          );
-    });
-
-    final currentIndex = ref.watch(currentChapterIndexProvider);
-
-    // Watch current chapter content
-    final currentChapterAsync = ref.watch(chapterContentProvider(bookId, currentIndex));
-
-    return currentChapterAsync.when(
-      loading: () {
-        // If we have cached chapter content, show it with bottom loading indicator
-        if (_cachedChapter != null && _isLoadingNextChapter) {
-          return _buildChapterView(
-            context,
-            book,
-            chapters,
-            _cachedChapter!,
-            _cachedChapterIndex,
-            isDarkTheme,
-            isReadingBgDark,
-            readingTextColor,
-            isLoadingNext: true,
-          );
-        }
-        // First load - show loading with top and bottom toolbars
-        return Scaffold(
-          backgroundColor: _backgroundColor,
-          body: SafeArea(
-            child: Column(
-              children: [
-                // Top bar
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-                  decoration: BoxDecoration(
-                    color: _backgroundColor,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: Icon(Icons.arrow_back, color: readingTextColor),
-                        onPressed: () => context.pop(),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          book.title,
-                          style: TextStyle(
-                            color: readingTextColor,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Loading area
-                Expanded(
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      color: readingTextColor,
-                    ),
-                  ),
-                ),
-                // Bottom toolbar placeholder with disabled icons
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                  decoration: BoxDecoration(
-                    color: _backgroundColor,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 4,
-                        offset: const Offset(0, -2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      // 只有当章节数大于3时才显示章节列表图标
-                      if (chapters.length > 3)
-                        Icon(
-                          Icons.format_list_bulleted,
-                          color: readingTextColor.withValues(alpha: 0.3),
-                          size: 28,
-                        ),
-                      Icon(
-                        Icons.text_fields,
-                        color: readingTextColor.withValues(alpha: 0.3),
-                        size: 28,
-                      ),
-                      Icon(
-                        Icons.dark_mode,
-                        color: readingTextColor.withValues(alpha: 0.3),
-                        size: 28,
-                      ),
-                      Icon(
-                        Icons.collections_bookmark_outlined,
-                        color: readingTextColor.withValues(alpha: 0.3),
-                        size: 28,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-      error: (error, stack) => Scaffold(
-        backgroundColor: _backgroundColor,
-        body: Center(
-          child: Text(
-            'Error loading chapter: $error',
-            style: TextStyle(color: readingTextColor),
-          ),
-        ),
-      ),
-      data: (currentChapter) {
-        // Cache the current chapter for future use
-        _cachedChapter = currentChapter;
-        _cachedChapterIndex = currentIndex;
-        _isLoadingNextChapter = false;
-
-        return _buildChapterView(
-          context,
-          book,
-          chapters,
-          currentChapter,
-          currentIndex,
-          isDarkTheme,
-          isReadingBgDark,
-          readingTextColor,
-        );
-      },
-    );
-  }
-
-  Widget _buildChapterView(
-    BuildContext context,
-    dynamic book,
-    List<ChapterVO> chapters,
-    ChapterVO currentChapter,
-    int currentIndex,
-    bool isDarkTheme,
-    bool isReadingBgDark,
-    Color readingTextColor, {
-    bool isLoadingNext = false,
-  }) {
-    // Restore scroll position after content is rendered (only when not loading next)
-    if (!isLoadingNext) {
+    // Initialize chapter cache when not initialized
+    if (!_isInitialized) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _restoreScrollPosition();
+        _initializeChapterCache(readerData);
+        ref.read(readingHistoryProvider.notifier).addOrUpdateHistory(
+              bookId: widget.bookId,
+              title: book.title,
+              author: book.author,
+              coverUrl: book.coverUrl,
+            );
       });
     }
 
-    // Check if this is the last free chapter
-    final isLastFreeChapter = _isLastFreeChapter(chapters, currentIndex);
-    final hasNextChapter = currentIndex < chapters.length - 1;
-
-    // Check if current chapter is not accessible (user is non-SVIP on paid chapter)
-    final canAccessCurrentChapter = currentChapter.canAccess ?? currentChapter.isFree;
+    // Watch chapter cache state
+    final cacheState = ref.watch(chapterCacheProvider(bookId));
+    final currentIndex = ref.watch(currentChapterIndexProvider);
 
     return Scaffold(
       backgroundColor: _backgroundColor,
@@ -760,48 +522,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                   height: _showToolbars ? 60 : 0,
                 ),
                 Expanded(
-                  child: SingleChildScrollView(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Show content only if user can access this chapter
-                        if (canAccessCurrentChapter) ...[
-                          // Chapter content with tap to toggle toolbars
-                          GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _showToolbars = !_showToolbars;
-                              });
-                            },
-                            child: Text(
-                              currentChapter.content ?? 'No content available',
-                              style: TextStyle(
-                                fontSize: _fontSize,
-                                color: readingTextColor,
-                                height: 1.5,
-                              ),
-                            ),
-                          ),
-                          // Show membership upgrade UI if this is the last free chapter
-                          // Don't wrap with GestureDetector to prevent toolbar toggle
-                          if (isLastFreeChapter && hasNextChapter) ...[
-                            const SizedBox(height: 40),
-                            _buildMembershipUpgradeSection(context, isDarkTheme, readingTextColor),
-                          ],
-                          // Show bottom loading indicator when loading next chapter
-                          if (isLoadingNext) ...[
-                            const SizedBox(height: 40),
-                            _buildBottomLoadingIndicator(readingTextColor),
-                          ],
-                        ] else ...[
-                          // User cannot access this chapter - show upgrade UI directly
-                          const SizedBox(height: 40),
-                          _buildMembershipUpgradeSection(context, isDarkTheme, readingTextColor),
-                        ],
-                      ],
-                    ),
+                  child: _buildSeamlessReaderView(
+                    readerData,
+                    cacheState,
+                    currentIndex,
+                    readingTextColor,
+                    isDarkTheme,
                   ),
                 ),
                 AnimatedContainer(
@@ -812,246 +538,489 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
             ),
 
             // Top toolbar
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 300),
-              top: _showToolbars ? 0 : -60,
-              left: 0,
-              right: 0,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-                decoration: BoxDecoration(
-                  color: _backgroundColor,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: Icon(Icons.arrow_back, color: readingTextColor),
-                      onPressed: () => context.pop(),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        book.title ?? 'Chapter 1',
-                        style: TextStyle(
-                          color: readingTextColor,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            _buildAnimatedTopToolbar(book, readingTextColor),
 
-            // Top toolbar when scrolling (shows book name and author)
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 300),
-              top: !_showToolbars ? 0 : -60,
-              left: 0,
-              right: 0,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                decoration: BoxDecoration(
-                  color: _backgroundColor.withValues(alpha: 0.95),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        book.title ?? '',
-                        style: TextStyle(
-                          color: readingTextColor,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Text(
-                      book.author ?? '',
-                      style: TextStyle(
-                        color: readingTextColor.withValues(alpha: 0.6),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            // Mini top bar when scrolling
+            _buildMiniTopBar(book, readingTextColor),
 
             // Bottom toolbar
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 300),
-              bottom: _showToolbars ? 0 : -200,
-              left: 0,
-              right: 0,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: _backgroundColor,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 4,
-                      offset: const Offset(0, -2),
+            _buildAnimatedBottomToolbar(book, chapters, isDarkTheme, readingTextColor),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Build seamless reader view with multiple chapters
+  Widget _buildSeamlessReaderView(
+    ReaderData readerData,
+    ChapterCacheState cacheState,
+    int currentIndex,
+    Color readingTextColor,
+    bool isDarkTheme,
+  ) {
+    final chapters = readerData.chapters;
+    final loadedChapters = cacheState.loadedChapters;
+
+    // Render all loaded chapters in order (stable, no jumping)
+    // This prevents layout changes when currentIndex updates
+    final renderIndices = loadedChapters.keys.toList()..sort();
+
+    // If no chapters loaded yet, show loading for current chapter
+    if (renderIndices.isEmpty) {
+      renderIndices.add(currentIndex.clamp(0, chapters.length - 1));
+    }
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _showToolbars = !_showToolbars;
+        });
+      },
+      child: SingleChildScrollView(
+        controller: _scrollController,
+        padding: const EdgeInsets.symmetric(horizontal: 20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final index in renderIndices)
+              if (index >= 0 && index < chapters.length)
+                _buildChapterSection(
+                  index,
+                  chapters[index],
+                  loadedChapters[index],
+                  cacheState.isChapterLoading(index),
+                  readingTextColor,
+                  isDarkTheme,
+                  chapters,
+                ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Build a single chapter section with title separator
+  Widget _buildChapterSection(
+    int index,
+    ChapterVO chapterMeta,
+    ChapterVO? loadedChapter,
+    bool isLoading,
+    Color readingTextColor,
+    bool isDarkTheme,
+    List<ChapterVO> allChapters,
+  ) {
+    // Create a key for this chapter to track its position
+    _chapterKeys[index] ??= GlobalKey();
+
+    final canAccess = chapterMeta.canAccess ?? chapterMeta.isFree;
+    final content = loadedChapter?.content;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Track chapter height after layout
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final key = _chapterKeys[index];
+          if (key?.currentContext != null) {
+            final box = key!.currentContext!.findRenderObject() as RenderBox?;
+            if (box != null && box.hasSize) {
+              _chapterHeights[index] = box.size.height;
+            }
+          }
+        });
+
+        return Container(
+          key: _chapterKeys[index],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Chapter title separator
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      chapterMeta.title,
+                      style: TextStyle(
+                        fontSize: _fontSize + 4,
+                        fontWeight: FontWeight.bold,
+                        color: readingTextColor,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      height: 2,
+                      width: 60,
+                      color: readingTextColor.withValues(alpha: 0.3),
                     ),
                   ],
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Bottom navigation icons (always show)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        // 只有当章节数大于3时才显示章节列表图标
-                        if (chapters.length > 3)
-                          IconButton(
-                            icon: Icon(
-                              Icons.format_list_bulleted,
-                              color: readingTextColor,
-                              size: 28,
-                            ),
-                            onPressed: () {
-                              _showChapterDrawer(context, book, chapters);
-                            },
-                          ),
-                        IconButton(
-                          icon: Icon(
-                            Icons.text_fields,
-                            color: readingTextColor,
-                            size: 28,
-                          ),
-                          onPressed: () {
-                            _showSettingsDrawer(context);
-                          },
-                        ),
-                        IconButton(
-                          icon: Icon(
-                            isDarkTheme ? Icons.light_mode : Icons.dark_mode,
-                            color: readingTextColor,
-                            size: 28,
-                          ),
-                          onPressed: () {
-                            final themeController = ref.read(themeControllerProvider.notifier);
-                            final currentTheme = ref.read(themeControllerProvider).value ?? ThemeMode.system;
+              ),
 
-                            // Toggle between light and dark
-                            if (currentTheme == ThemeMode.dark) {
-                              // Switch to light theme
-                              themeController.updateThemeMode(ThemeMode.light);
-                              // Set background to first color (white)
-                              setState(() {
-                                _backgroundColor = Colors.white;
-                              });
-                              _saveReaderSettings();
-                            } else {
-                              // Switch to dark theme
-                              themeController.updateThemeMode(ThemeMode.dark);
-                              // Set background to last color (black)
-                              setState(() {
-                                _backgroundColor = Colors.black;
-                              });
-                              _saveReaderSettings();
-                            }
-                          },
-                        ),
-                        IconButton(
-                          icon: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              Icon(
-                                Icons.collections_bookmark_outlined,
-                                color: readingTextColor,
-                                size: 28,
-                              ),
-                              Positioned(
-                                right: 0,
-                                bottom: 0,
-                                child: Container(
-                                  padding: const EdgeInsets.all(2),
-                                  decoration: BoxDecoration(
-                                    color: _backgroundColor,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    _isInBookshelf ? Icons.check : Icons.add,
-                                    color: readingTextColor,
-                                    size: 12,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          onPressed: () async {
-                            final scaffoldMessenger = ScaffoldMessenger.of(context);
-                            try {
-                              if (_isInBookshelf) {
-                                // Remove from bookshelf (local storage)
-                                await ref.read(bookshelfProvider.notifier).removeBook(widget.bookId);
-                                if (mounted) {
-                                  setState(() {
-                                    _isInBookshelf = false;
-                                  });
-                                  scaffoldMessenger.showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Removed from bookshelf'),
-                                      duration: Duration(seconds: 2),
-                                    ),
-                                  );
-                                }
-                              } else {
-                                // Add to bookshelf (local storage)
-                                await ref.read(bookshelfProvider.notifier).addBook(
-                                      id: widget.bookId,
-                                      title: _bookTitle,
-                                      author: _bookAuthor,
-                                      coverUrl: _bookCoverUrl,
-                                      category: _bookCategory,
-                                    );
-                                if (mounted) {
-                                  setState(() {
-                                    _isInBookshelf = true;
-                                  });
-                                  scaffoldMessenger.showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Added to bookshelf'),
-                                      duration: Duration(seconds: 2),
-                                    ),
-                                  );
-                                }
-                              }
-                            } catch (e) {
-                              if (mounted) {
-                                scaffoldMessenger.showSnackBar(
-                                  SnackBar(
-                                    content: Text('Failed to update bookshelf: $e'),
-                                    duration: const Duration(seconds: 2),
-                                  ),
-                                );
-                              }
-                            }
-                          },
-                        ),
-                      ],
+              // Chapter content
+              if (!canAccess)
+                _buildPaywallSection(readingTextColor, isDarkTheme)
+              else if (isLoading || content == null || content.isEmpty)
+                _buildChapterLoadingIndicator(readingTextColor)
+              else
+                Text(
+                  content,
+                  style: TextStyle(
+                    fontSize: _fontSize,
+                    color: readingTextColor,
+                    height: 1.8,
+                  ),
+                ),
+
+              // No need to show membership upgrade here - the next chapter's paywall section handles it
+
+              const SizedBox(height: 40),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildChapterLoadingIndicator(Color readingTextColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 80),
+      child: Center(
+        child: Column(
+          children: [
+            SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: readingTextColor.withValues(alpha: 0.6),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Loading chapter...',
+              style: TextStyle(
+                color: readingTextColor.withValues(alpha: 0.5),
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPaywallSection(Color readingTextColor, bool isDarkTheme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 40),
+      child: _buildMembershipUpgradeSection(context, isDarkTheme, readingTextColor),
+    );
+  }
+
+  Widget _buildTopBar(Color readingTextColor, String title) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+      decoration: BoxDecoration(
+        color: _backgroundColor,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            icon: Icon(Icons.arrow_back, color: readingTextColor),
+            onPressed: () => context.pop(),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                color: readingTextColor,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomToolbarPlaceholder(Color readingTextColor, List<ChapterVO> chapters) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      decoration: BoxDecoration(
+        color: _backgroundColor,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 4,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          if (chapters.length > 3)
+            Icon(Icons.format_list_bulleted, color: readingTextColor.withValues(alpha: 0.3), size: 28),
+          Icon(Icons.text_fields, color: readingTextColor.withValues(alpha: 0.3), size: 28),
+          Icon(Icons.dark_mode, color: readingTextColor.withValues(alpha: 0.3), size: 28),
+          Icon(Icons.collections_bookmark_outlined, color: readingTextColor.withValues(alpha: 0.3), size: 28),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnimatedTopToolbar(dynamic book, Color readingTextColor) {
+    return AnimatedPositioned(
+      duration: const Duration(milliseconds: 300),
+      top: _showToolbars ? 0 : -60,
+      left: 0,
+      right: 0,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+        decoration: BoxDecoration(
+          color: _backgroundColor,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            IconButton(
+              icon: Icon(Icons.arrow_back, color: readingTextColor),
+              onPressed: () => context.pop(),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                book.title ?? 'Chapter 1',
+                style: TextStyle(
+                  color: readingTextColor,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMiniTopBar(dynamic book, Color readingTextColor) {
+    return AnimatedPositioned(
+      duration: const Duration(milliseconds: 300),
+      top: !_showToolbars ? 0 : -60,
+      left: 0,
+      right: 0,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        decoration: BoxDecoration(
+          color: _backgroundColor.withValues(alpha: 0.95),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                book.title ?? '',
+                style: TextStyle(
+                  color: readingTextColor,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Text(
+              book.author ?? '',
+              style: TextStyle(
+                color: readingTextColor.withValues(alpha: 0.6),
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAnimatedBottomToolbar(dynamic book, List<ChapterVO> chapters, bool isDarkTheme, Color readingTextColor) {
+    return AnimatedPositioned(
+      duration: const Duration(milliseconds: 300),
+      bottom: _showToolbars ? 0 : -200,
+      left: 0,
+      right: 0,
+      child: Container(
+        decoration: BoxDecoration(
+          color: _backgroundColor,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 4,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            if (chapters.length > 3)
+              IconButton(
+                icon: Icon(Icons.format_list_bulleted, color: readingTextColor, size: 28),
+                onPressed: () => _showChapterDrawer(context, book, chapters),
+              ),
+            IconButton(
+              icon: Icon(Icons.text_fields, color: readingTextColor, size: 28),
+              onPressed: () => _showSettingsDrawer(context),
+            ),
+            IconButton(
+              icon: Icon(isDarkTheme ? Icons.light_mode : Icons.dark_mode, color: readingTextColor, size: 28),
+              onPressed: () => _toggleTheme(),
+            ),
+            _buildBookshelfButton(readingTextColor),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _toggleTheme() {
+    final themeController = ref.read(themeControllerProvider.notifier);
+    final currentTheme = ref.read(themeControllerProvider).value ?? ThemeMode.system;
+
+    if (currentTheme == ThemeMode.dark) {
+      themeController.updateThemeMode(ThemeMode.light);
+      setState(() {
+        _backgroundColor = Colors.white;
+      });
+    } else {
+      themeController.updateThemeMode(ThemeMode.dark);
+      setState(() {
+        _backgroundColor = Colors.black;
+      });
+    }
+    _saveReaderSettings();
+  }
+
+  Widget _buildBookshelfButton(Color readingTextColor) {
+    return IconButton(
+      icon: Stack(
+        alignment: Alignment.center,
+        children: [
+          Icon(Icons.collections_bookmark_outlined, color: readingTextColor, size: 28),
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: _backgroundColor,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                _isInBookshelf ? Icons.check : Icons.add,
+                color: readingTextColor,
+                size: 12,
+              ),
+            ),
+          ),
+        ],
+      ),
+      onPressed: () async {
+        final scaffoldMessenger = ScaffoldMessenger.of(context);
+        try {
+          if (_isInBookshelf) {
+            await ref.read(bookshelfProvider.notifier).removeBook(widget.bookId);
+            if (mounted) {
+              setState(() {
+                _isInBookshelf = false;
+              });
+              scaffoldMessenger.showSnackBar(
+                const SnackBar(content: Text('Removed from bookshelf'), duration: Duration(seconds: 2)),
+              );
+            }
+          } else {
+            await ref.read(bookshelfProvider.notifier).addBook(
+                  id: widget.bookId,
+                  title: _bookTitle,
+                  author: _bookAuthor,
+                  coverUrl: _bookCoverUrl,
+                  category: _bookCategory,
+                );
+            if (mounted) {
+              setState(() {
+                _isInBookshelf = true;
+              });
+              scaffoldMessenger.showSnackBar(
+                const SnackBar(content: Text('Added to bookshelf'), duration: Duration(seconds: 2)),
+              );
+            }
+          }
+        } catch (e) {
+          if (mounted) {
+            scaffoldMessenger.showSnackBar(
+              SnackBar(content: Text('Failed to update bookshelf: $e'), duration: const Duration(seconds: 2)),
+            );
+          }
+        }
+      },
+    );
+  }
+
+  Widget _buildEmptyChaptersView(BuildContext context, dynamic book, Color readingTextColor) {
+    return Scaffold(
+      backgroundColor: _backgroundColor,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildTopBar(readingTextColor, book.title ?? 'Book Reader'),
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.menu_book_outlined, size: 80, color: readingTextColor.withValues(alpha: 0.3)),
+                    const SizedBox(height: 24),
+                    Text(
+                      'No chapters available',
+                      style: TextStyle(
+                        color: readingTextColor.withValues(alpha: 0.7),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'This book doesn\'t have any chapters yet',
+                      style: TextStyle(
+                        color: readingTextColor.withValues(alpha: 0.5),
+                        fontSize: 14,
+                      ),
                     ),
                   ],
                 ),
@@ -1088,7 +1057,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Drag handle
                 Container(
                   width: 40,
                   height: 4,
@@ -1117,7 +1085,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                               _brightness = value;
                             });
                             setModalState(() {});
-                            // Apply screen brightness
                             _setScreenBrightness(value);
                             _saveReaderSettings();
                           },
@@ -1161,17 +1128,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                       _eyeProtectionMode = newValue;
                     });
                     setModalState(() {});
-                    // Apply eye protection mode
                     _applyEyeProtectionMode(newValue);
                     _saveReaderSettings();
                   },
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Eye protection mode',
-                        style: TextStyle(color: textColor, fontSize: 16),
-                      ),
+                      Text('Eye protection mode', style: TextStyle(color: textColor, fontSize: 16)),
                       Switch(
                         value: _eyeProtectionMode,
                         onChanged: (value) {
@@ -1179,7 +1142,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                             _eyeProtectionMode = value;
                           });
                           setModalState(() {});
-                          // Apply eye protection mode
                           _applyEyeProtectionMode(value);
                           _saveReaderSettings();
                         },
@@ -1190,19 +1152,15 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                // Background color label
+                // Background color
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
                     'Background Color Setting',
-                    style: TextStyle(
-                      color: textColor.withValues(alpha: 0.5),
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 14),
                   ),
                 ),
                 const SizedBox(height: 12),
-                // Background color buttons
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
@@ -1222,96 +1180,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     );
   }
 
-  Widget _buildEmptyChaptersView(
-    BuildContext context,
-    dynamic book,
-    bool isDarkTheme,
-    bool isReadingBgDark,
-    Color readingTextColor,
-  ) {
-    return Scaffold(
-      backgroundColor: _backgroundColor,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Top bar with back button
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-              decoration: BoxDecoration(
-                color: _backgroundColor,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.arrow_back, color: readingTextColor),
-                    onPressed: () => context.pop(),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      book.title ?? 'Book Reader',
-                      style: TextStyle(
-                        color: readingTextColor,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Empty state content
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.menu_book_outlined,
-                      size: 80,
-                      color: readingTextColor.withValues(alpha: 0.3),
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      'No chapters available',
-                      style: TextStyle(
-                        color: readingTextColor.withValues(alpha: 0.7),
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'This book doesn\'t have any chapters yet',
-                      style: TextStyle(
-                        color: readingTextColor.withValues(alpha: 0.5),
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _showChapterDrawer(BuildContext context, dynamic book, List<ChapterVO> chapters) {
     final theme = Theme.of(context);
     final isDarkTheme = theme.brightness == Brightness.dark;
     final currentIndex = ref.read(currentChapterIndexProvider);
 
-    // Sort chapters based on orderNum
     final sortedChapters = List<ChapterVO>.from(chapters);
     if (_isChaptersSortedAscending) {
       sortedChapters.sort((a, b) => a.orderNum.compareTo(b.orderNum));
@@ -1346,9 +1219,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                   padding: const EdgeInsets.all(16.0),
                   decoration: BoxDecoration(
                     border: Border(
-                      bottom: BorderSide(
-                        color: isDarkTheme ? Colors.grey[800]! : Colors.grey[200]!,
-                      ),
+                      bottom: BorderSide(color: isDarkTheme ? Colors.grey[800]! : Colors.grey[200]!),
                     ),
                   ),
                   child: Row(
@@ -1384,21 +1255,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                           children: [
                             Text(
                               book.title ?? '',
-                              style: TextStyle(
-                                color: textColor,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
+                              style: TextStyle(color: textColor, fontSize: 16, fontWeight: FontWeight.w600),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 4),
                             Text(
                               book.author ?? '',
-                              style: TextStyle(
-                                color: textColor.withValues(alpha: 0.6),
-                                fontSize: 14,
-                              ),
+                              style: TextStyle(color: textColor.withValues(alpha: 0.6), fontSize: 14),
                             ),
                           ],
                         ),
@@ -1417,19 +1281,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                     children: [
                       Text(
                         '${book.chapterCount ?? 0} Chapter${(book.chapterCount ?? 0) > 1 ? 's' : ''}',
-                        style: TextStyle(
-                          color: textColor,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
+                        style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.w500),
                       ),
                       const SizedBox(width: 16),
                       Text(
                         book.completionStatus == 'completed' ? 'Complete' : 'Ongoing',
-                        style: TextStyle(
-                          color: textColor.withValues(alpha: 0.5),
-                          fontSize: 14,
-                        ),
+                        style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 14),
                       ),
                       const Spacer(),
                       IconButton(
@@ -1454,10 +1311,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 Expanded(
                   child: sortedChapters.isEmpty
                       ? Center(
-                          child: Text(
-                            'No chapters available',
-                            style: TextStyle(color: textColor.withValues(alpha: 0.5)),
-                          ),
+                          child: Text('No chapters available', style: TextStyle(color: textColor.withValues(alpha: 0.5))),
                         )
                       : ListView.builder(
                           controller: scrollController,
@@ -1465,7 +1319,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                           itemBuilder: (context, index) {
                             final chapter = sortedChapters[index];
                             final isLocked = !(chapter.canAccess ?? chapter.isFree);
-                            // Find the actual index in the original chapters list
                             final actualChapterIndex = chapters.indexWhere((c) => c.id == chapter.id);
                             final isCurrent = actualChapterIndex == currentIndex;
 
@@ -1473,31 +1326,24 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                               onTap: () {
                                 Navigator.pop(context);
                                 if (isLocked) {
-                                  // Navigate to last free chapter if clicking on a paid chapter
-                                  final lastFreeIndex = _findLastFreeChapterIndex(chapters);
-                                  _navigateToChapter(lastFreeIndex);
-
-                                  // Show a message to the user
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('This chapter is locked. Subscribe to unlock.'),
-                                      duration: Duration(seconds: 3),
-                                    ),
+                                  // Show subscription dialog for locked chapters
+                                  final bookId = int.parse(widget.bookId);
+                                  SubscriptionFlowHelper.showSubscriptionFlow(
+                                    context: context,
+                                    ref: ref,
+                                    sourceBookId: bookId,
+                                    sourceEntry: 'reader_chapter_list',
+                                    onSuccess: () => _reinitializeAfterSubscription(),
                                   );
                                 } else {
                                   _navigateToChapter(actualChapterIndex);
                                 }
                               },
                               child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16.0,
-                                  vertical: 16.0,
-                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
                                 decoration: BoxDecoration(
                                   border: Border(
-                                    bottom: BorderSide(
-                                      color: isDarkTheme ? Colors.grey[800]! : Colors.grey[100]!,
-                                    ),
+                                    bottom: BorderSide(color: isDarkTheme ? Colors.grey[800]! : Colors.grey[100]!),
                                   ),
                                 ),
                                 child: Row(
@@ -1517,11 +1363,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                       ),
                                     ),
                                     if (isLocked)
-                                      Icon(
-                                        Icons.lock_outline,
-                                        color: textColor.withValues(alpha: 0.3),
-                                        size: 20,
-                                      ),
+                                      Icon(Icons.lock_outline, color: textColor.withValues(alpha: 0.3), size: 20),
                                   ],
                                 ),
                               ),
@@ -1556,11 +1398,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           child: Center(
             child: Text(
               label,
-              style: TextStyle(
-                color: textColor,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
+              style: TextStyle(color: textColor, fontSize: 16, fontWeight: FontWeight.w500),
             ),
           ),
         ),
@@ -1570,9 +1408,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   Widget _buildColorButton(Color color, String label) {
     final isSelected = _backgroundColor == color;
-    final labelColor = color == Colors.white || color.computeLuminance() > 0.5
-        ? Colors.black
-        : Colors.white;
+    final labelColor = color == Colors.white || color.computeLuminance() > 0.5 ? Colors.black : Colors.white;
 
     return GestureDetector(
       onTap: () {
@@ -1587,28 +1423,18 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         decoration: BoxDecoration(
           color: color,
           border: Border.all(
-            color: isSelected
-                ? const Color(0xFFE91E63)
-                : (color == Colors.white ? Colors.grey[300]! : color),
+            color: isSelected ? const Color(0xFFE91E63) : (color == Colors.white ? Colors.grey[300]! : color),
             width: isSelected ? 3 : 1,
           ),
           borderRadius: BorderRadius.circular(30),
         ),
         child: Center(
-          child: Text(
-            label,
-            style: TextStyle(
-              color: labelColor,
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
+          child: Text(label, style: TextStyle(color: labelColor, fontSize: 18, fontWeight: FontWeight.w500)),
         ),
       ),
     );
   }
 
-  /// Build membership upgrade section
   Widget _buildMembershipUpgradeSection(BuildContext context, bool isDarkTheme, Color textColor) {
     return Container(
       padding: const EdgeInsets.all(24.0),
@@ -1619,13 +1445,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // SVIP Badge
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
-              ),
+              gradient: const LinearGradient(colors: [Color(0xFFFFD700), Color(0xFFFFA500)]),
               borderRadius: BorderRadius.circular(20),
             ),
             child: const Text(
@@ -1639,65 +1462,40 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
             ),
           ),
           const SizedBox(height: 20),
-
-          // Title
           Text(
             'Unlock all chapters',
-            style: TextStyle(
-              color: textColor,
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(color: textColor, fontSize: 22, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
-
-          // Description
           Text(
             'Subscribe to continue reading and enjoy unlimited access to all premium content',
-            style: TextStyle(
-              color: textColor.withValues(alpha: 0.7),
-              fontSize: 14,
-              height: 1.5,
-            ),
+            style: TextStyle(color: textColor.withValues(alpha: 0.7), fontSize: 14, height: 1.5),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
-
-          // Recharge button
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () {
                 final bookId = int.parse(widget.bookId);
-                final currentIndex = ref.read(currentChapterIndexProvider);
                 SubscriptionFlowHelper.showSubscriptionFlow(
                   context: context,
                   ref: ref,
                   sourceBookId: bookId,
                   sourceEntry: 'reader',
-                  onSuccess: () {
-                    // 订阅成功后刷新章节数据
-                    ref.invalidate(readerDataProvider(bookId));
-                    ref.invalidate(chapterContentProvider(bookId, currentIndex));
-                  },
+                  onSuccess: () => _reinitializeAfterSubscription(),
                 );
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFE91E63),
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(25),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
                 elevation: 0,
               ),
               child: const Text(
                 'Choose Your Plan',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
           ),
@@ -1705,32 +1503,4 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       ),
     );
   }
-
-  /// Build bottom loading indicator for next chapter
-  Widget _buildBottomLoadingIndicator(Color textColor) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 32.0),
-      child: Column(
-        children: [
-          SizedBox(
-            width: 24,
-            height: 24,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: textColor.withValues(alpha: 0.6),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Loading next chapter...',
-            style: TextStyle(
-              color: textColor.withValues(alpha: 0.5),
-              fontSize: 14,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
 }

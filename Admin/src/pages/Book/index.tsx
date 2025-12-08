@@ -38,11 +38,14 @@ import {
 } from '../../api/passcode';
 import { getActiveDistributors } from '../../api/distributor';
 import RichTextEditor from '../../components/RichTextEditor';
+import { useUserStore } from '../../store/userStore';
 
 const { TextArea } = Input;
 
 const BookManagement: React.FC = () => {
   const { t } = useTranslation();
+  const { role, distributorId, userInfo } = useUserStore();
+  const isDistributor = role === 'distributor';
   const [books, setBooks] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [languages, setLanguages] = useState<any[]>([]);
@@ -346,6 +349,10 @@ const BookManagement: React.FC = () => {
   const handleAddPasscode = () => {
     setEditingPasscode(null);
     passcodeForm.resetFields();
+    // 如果是分销商登录，自动设置 distributorId
+    if (isDistributor && distributorId) {
+      passcodeForm.setFieldsValue({ distributorId });
+    }
     setPasscodeFormVisible(true);
   };
 
@@ -1090,13 +1097,23 @@ const BookManagement: React.FC = () => {
             name="distributorId"
             rules={[{ required: true, message: t('passcode.pleaseSelectDistributor') }]}
           >
-            <Select placeholder={t('passcode.selectDistributor')}>
-              {distributors.map(dist => (
-                <Select.Option key={dist.id} value={dist.id}>
-                  {dist.name}
+            {isDistributor ? (
+              // 分销商登录时，显示自己的名称且不可修改
+              <Select disabled>
+                <Select.Option value={distributorId}>
+                  {userInfo?.displayName || '当前分销商'}
                 </Select.Option>
-              ))}
-            </Select>
+              </Select>
+            ) : (
+              // 管理员可以选择任意分销商
+              <Select placeholder={t('passcode.selectDistributor')}>
+                {distributors.map(dist => (
+                  <Select.Option key={dist.id} value={dist.id}>
+                    {dist.name}
+                  </Select.Option>
+                ))}
+              </Select>
+            )}
           </Form.Item>
           <Form.Item label={t('passcode.passcode')} name="passcode">
             <Input
