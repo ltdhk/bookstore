@@ -23,15 +23,30 @@ class AuthNotifier extends _$AuthNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token');
-      final userJson = prefs.getString('user_data');
 
-      if (token != null && userJson != null) {
-        // In a real app, you might want to verify the token is still valid
-        // For now, we'll just return null and require re-login
+      if (token == null) {
         return null;
       }
-      return null;
+
+      // Token exists, try to get user profile from server
+      try {
+        final authService = ref.read(authApiServiceProvider);
+        final user = await authService.getProfile();
+        // Return user with the stored token
+        return user.copyWith(token: token);
+      } catch (e) {
+        // Token might be expired or invalid
+        debugPrint('Failed to restore user session: $e');
+        // Clear invalid token
+        await prefs.remove('auth_token');
+        await prefs.remove('user_id');
+        await prefs.remove('username');
+        await prefs.remove('nickname');
+        await prefs.remove('avatar');
+        return null;
+      }
     } catch (e) {
+      debugPrint('Error loading user: $e');
       return null;
     }
   }

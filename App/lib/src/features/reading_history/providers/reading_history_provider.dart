@@ -19,7 +19,7 @@ class ReadingHistory extends _$ReadingHistory {
     required String author,
     String? coverUrl,
   }) async {
-    final storage = ref.read(readingHistoryLocalStorageProvider).requireValue;
+    final storage = await ref.read(readingHistoryLocalStorageProvider.future);
     await storage.addOrUpdateHistory(
       bookId: bookId,
       title: title,
@@ -33,7 +33,7 @@ class ReadingHistory extends _$ReadingHistory {
 
   /// Remove a history item
   Future<void> removeHistory(String bookId) async {
-    final storage = ref.read(readingHistoryLocalStorageProvider).requireValue;
+    final storage = await ref.read(readingHistoryLocalStorageProvider.future);
     await storage.removeHistory(bookId);
     // Check if still mounted after async operation
     if (!ref.mounted) return;
@@ -42,7 +42,7 @@ class ReadingHistory extends _$ReadingHistory {
 
   /// Clear all history
   Future<void> clearAll() async {
-    final storage = ref.read(readingHistoryLocalStorageProvider).requireValue;
+    final storage = await ref.read(readingHistoryLocalStorageProvider.future);
     await storage.clearAll();
     // Check if still mounted after async operation
     if (!ref.mounted) return;

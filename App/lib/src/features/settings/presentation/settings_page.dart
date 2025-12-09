@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:novelpop/l10n/app_localizations.dart';
 import 'package:novelpop/src/features/settings/data/theme_provider.dart';
 import 'package:novelpop/src/features/settings/data/locale_provider.dart';
+import 'package:novelpop/src/features/settings/data/version_provider.dart';
+import 'package:novelpop/src/features/settings/presentation/widgets/update_dialog.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -174,20 +176,81 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             },
           ),
           _buildDivider(),
-          _buildListTile(
-            title: l10n.versionUpdate,
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: const [
-                Text(
-                  'Version v2.27',
-                  style: TextStyle(color: Colors.grey, fontSize: 14),
+          Consumer(
+            builder: (context, ref, child) {
+              final packageInfoAsync = ref.watch(packageInfoProvider);
+              final versionCheckAsync = ref.watch(versionCheckProvider);
+
+              return _buildListTile(
+                title: l10n.versionUpdate,
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    packageInfoAsync.when(
+                      data: (info) => Text(
+                        'v${info.version}',
+                        style: const TextStyle(color: Colors.grey, fontSize: 14),
+                      ),
+                      loading: () => const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      error: (_, __) => const Text(
+                        'Unknown',
+                        style: TextStyle(color: Colors.grey, fontSize: 14),
+                      ),
+                    ),
+                    versionCheckAsync.when(
+                      data: (versionInfo) {
+                        if (versionInfo != null && versionInfo.hasUpdate) {
+                          return Container(
+                            margin: const EdgeInsets.only(left: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Text(
+                              'NEW',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                      loading: () => const SizedBox.shrink(),
+                      error: (_, __) => const SizedBox.shrink(),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+                  ],
                 ),
-                SizedBox(width: 8),
-                Icon(Icons.chevron_right, color: Colors.grey, size: 20),
-              ],
-            ),
-            onTap: () {},
+                onTap: () async {
+                  final versionInfo = await ref
+                      .read(versionCheckProvider.notifier)
+                      .checkForUpdate();
+
+                  if (versionInfo != null && versionInfo.hasUpdate && context.mounted) {
+                    UpdateDialog.show(context, versionInfo);
+                  } else if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('You are using the latest version'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                },
+              );
+            },
           ),
         ],
       ),

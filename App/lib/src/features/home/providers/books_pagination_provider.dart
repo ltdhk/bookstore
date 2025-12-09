@@ -123,7 +123,8 @@ class BooksPagination extends _$BooksPagination {
   }
 
   /// Refresh (reload from first page)
-  Future<void> refresh() async {
+  /// [forceLanguage] - if provided, use this language instead of fetching from settings
+  Future<void> refresh({String? forceLanguage}) async {
     // Keep current books during refresh to avoid showing loading indicator
     final currentBooks = state.books;
 
@@ -137,7 +138,7 @@ class BooksPagination extends _$BooksPagination {
 
     // Load first page
     final bookService = ref.read(bookApiServiceProvider);
-    final language = await _getUserLanguage();
+    final language = forceLanguage ?? await _getUserLanguage();
 
     try {
       state = state.copyWith(isLoading: true, error: null);

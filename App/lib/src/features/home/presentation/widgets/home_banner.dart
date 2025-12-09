@@ -77,10 +77,9 @@ class HomeBanner extends ConsumerWidget {
                         imageUrl: ad.imageUrl,
                         fit: BoxFit.cover,
                         placeholder: (context, url) => Container(
-                          color: Colors.grey[300],
-                          child: const Center(
-                            child: CircularProgressIndicator(),
-                          ),
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.grey[800]
+                              : Colors.grey[200],
                         ),
                         errorWidget: (context, url, error) => Container(
                           color: Colors.grey[300],
@@ -98,10 +97,11 @@ class HomeBanner extends ConsumerWidget {
       loading: () => Container(
         height: 150.0,
         decoration: BoxDecoration(
-          color: Colors.grey[300],
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.grey[800]
+              : Colors.grey[200],
           borderRadius: BorderRadius.circular(8.0),
         ),
-        child: const Center(child: CircularProgressIndicator()),
       ),
       error: (err, stack) {
         debugPrint('Error loading advertisements: $err');

@@ -18,7 +18,15 @@
       "Bash(flutter clean:*)",
       "Bash(git rm:*)",
       "Bash(keytool:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(npm run build:*)",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)",
+      "Bash(/Users/litengda/Documents/Tools/flutter/bin/flutter pub run build_runner build:*)",
+      "Bash(/Users/litengda/Documents/Tools/flutter/bin/flutter pub:*)",
+      "Bash(/Users/litengda/Documents/Tools/flutter/bin/dart run build_runner build:*)",
+      "Bash(git checkout:*)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []

@@ -9,6 +9,7 @@ import {
 import { getAllTags, createTag, updateTag, deleteTag } from '../../api/tag';
 import { getCategories, createCategory, updateCategory, deleteCategory } from '../../api/category';
 import { getLanguages, createLanguage, updateLanguage, deleteLanguage } from '../../api/language';
+import VersionManagementTab from './VersionManagementTab';
 
 const { TabPane } = Tabs;
 
@@ -876,7 +877,10 @@ const SystemManagement: React.FC = () => {
         <TabPane tab="标签管理" key="5">
           <TagManagementTab />
         </TabPane>
-        <TabPane tab="操作日志" key="6">
+        <TabPane tab="版本管理" key="6">
+          <VersionManagementTab />
+        </TabPane>
+        <TabPane tab="操作日志" key="7">
           <LogTab />
         </TabPane>
       </Tabs>

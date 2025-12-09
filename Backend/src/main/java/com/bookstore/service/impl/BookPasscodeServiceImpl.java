@@ -22,25 +22,39 @@ public class BookPasscodeServiceImpl extends ServiceImpl<BookPasscodeRepository,
 
     @Override
     public String generatePasscode() {
-        // Generate a passcode starting with "KL" followed by 4 random digits (0000-9999)
+        // Generate a 4-digit passcode first, fallback to 5-digit if all 4-digit codes are used
         String passcode;
         Random random = new Random();
-        int maxAttempts = 10000; // Prevent infinite loop
-        int attempts = 0;
+
+        // First, try to generate a 4-digit passcode (1000-9999)
+        int fourDigitAttempts = 0;
+        int maxFourDigitAttempts = 9000; // Total 4-digit codes available: 1000-9999
 
         do {
-            // Generate 4-digit number with leading zeros (0000-9999)
-            int randomNum = random.nextInt(10000);
-            String randomPart = String.format("%04d", randomNum);
-            passcode = "KL" + randomPart;
-            attempts++;
+            int randomNum = 1000 + random.nextInt(9000);
+            passcode = String.valueOf(randomNum);
+            fourDigitAttempts++;
 
-            if (attempts >= maxAttempts) {
-                throw new RuntimeException("无法生成唯一的口令，所有可用的口令已被使用");
+            if (!passcodeExists(passcode)) {
+                return passcode;
             }
-        } while (passcodeExists(passcode));
+        } while (fourDigitAttempts < maxFourDigitAttempts);
 
-        return passcode;
+        // All 4-digit codes used, generate 5-digit passcode (10000-99999)
+        int fiveDigitAttempts = 0;
+        int maxFiveDigitAttempts = 90000;
+
+        do {
+            int randomNum = 10000 + random.nextInt(90000);
+            passcode = String.valueOf(randomNum);
+            fiveDigitAttempts++;
+
+            if (!passcodeExists(passcode)) {
+                return passcode;
+            }
+        } while (fiveDigitAttempts < maxFiveDigitAttempts);
+
+        throw new RuntimeException("无法生成唯一的口令，所有可用的口令已被使用");
     }
 
     private boolean passcodeExists(String passcode) {
