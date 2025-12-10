@@ -71,6 +71,9 @@ abstract class _$CurrentChapterIndex extends $Notifier<int> {
 /// Provider that fetches all reader data in a single optimized API call
 /// This replaces the previous approach of making 2 separate API calls
 /// (getBookDetails + getBookChapters) with just 1 call (getReaderData)
+///
+/// Note: Auth state changes are handled by ReaderScreen, which invalidates
+/// this provider when user logs in/out to refresh chapter access permissions
 
 @ProviderFor(readerData)
 const readerDataProvider = ReaderDataFamily._();
@@ -78,6 +81,9 @@ const readerDataProvider = ReaderDataFamily._();
 /// Provider that fetches all reader data in a single optimized API call
 /// This replaces the previous approach of making 2 separate API calls
 /// (getBookDetails + getBookChapters) with just 1 call (getReaderData)
+///
+/// Note: Auth state changes are handled by ReaderScreen, which invalidates
+/// this provider when user logs in/out to refresh chapter access permissions
 
 final class ReaderDataProvider
     extends
@@ -90,6 +96,9 @@ final class ReaderDataProvider
   /// Provider that fetches all reader data in a single optimized API call
   /// This replaces the previous approach of making 2 separate API calls
   /// (getBookDetails + getBookChapters) with just 1 call (getReaderData)
+  ///
+  /// Note: Auth state changes are handled by ReaderScreen, which invalidates
+  /// this provider when user logs in/out to refresh chapter access permissions
   const ReaderDataProvider._({
     required ReaderDataFamily super.from,
     required int super.argument,
@@ -138,6 +147,9 @@ String _$readerDataHash() => r'551ba0899d3c07f51fb961a1cd30e342b6c444ac';
 /// Provider that fetches all reader data in a single optimized API call
 /// This replaces the previous approach of making 2 separate API calls
 /// (getBookDetails + getBookChapters) with just 1 call (getReaderData)
+///
+/// Note: Auth state changes are handled by ReaderScreen, which invalidates
+/// this provider when user logs in/out to refresh chapter access permissions
 
 final class ReaderDataFamily extends $Family
     with $FunctionalFamilyOverride<FutureOr<ReaderData>, int> {
@@ -153,6 +165,9 @@ final class ReaderDataFamily extends $Family
   /// Provider that fetches all reader data in a single optimized API call
   /// This replaces the previous approach of making 2 separate API calls
   /// (getBookDetails + getBookChapters) with just 1 call (getReaderData)
+  ///
+  /// Note: Auth state changes are handled by ReaderScreen, which invalidates
+  /// this provider when user logs in/out to refresh chapter access permissions
 
   ReaderDataProvider call(int bookId) =>
       ReaderDataProvider._(argument: bookId, from: this);

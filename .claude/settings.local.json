@@ -26,7 +26,8 @@
       "Bash(/Users/litengda/Documents/Tools/flutter/bin/flutter pub:*)",
       "Bash(/Users/litengda/Documents/Tools/flutter/bin/dart run build_runner build:*)",
       "Bash(git checkout:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(/Users/litengda/Documents/Tools/flutter/bin/flutter analyze:*)"
     ],
     "deny": [],
     "ask": []

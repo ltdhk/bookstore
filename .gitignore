@@ -75,3 +75,6 @@ logs/
 compile_output.txt
 
 key/
+
+# Documentation (local only)
+Docs/SETUP.md

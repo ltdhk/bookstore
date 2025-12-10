@@ -276,6 +276,18 @@ class _SubscriptionDialogState extends ConsumerState<SubscriptionDialog> {
     // Calculate savings based on weekly price
     final weeklyPrice = weekly?.price ?? 19.9;
 
+    // Default select yearly plan if nothing is selected
+    if (_selectedProductId == null && yearly != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _selectedProductId == null) {
+          setState(() {
+            _selectedProductId = yearly.productId;
+            _selectedPlanType = yearly.planType;
+          });
+        }
+      });
+    }
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -330,6 +342,7 @@ class _SubscriptionDialogState extends ConsumerState<SubscriptionDialog> {
             null,
             isDark,
             false,
+            showAutoRenew: true,
           ),
         if (monthly != null) ...[
           const SizedBox(height: 12),
@@ -407,8 +420,9 @@ class _SubscriptionDialogState extends ConsumerState<SubscriptionDialog> {
     String displayName,
     double? savingsPercentage,
     bool isDark,
-    bool isRecommended,
-  ) {
+    bool isRecommended, {
+    bool showAutoRenew = false,
+  }) {
     final isSelected = _selectedProductId == product.productId;
 
     return InkWell(
@@ -535,6 +549,24 @@ class _SubscriptionDialogState extends ConsumerState<SubscriptionDialog> {
                       color: Color(0xFF4CAF50),
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+                if (showAutoRenew) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE91E63).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'Auto-renews',
+                      style: TextStyle(
+                        color: Color(0xFFE91E63),
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],

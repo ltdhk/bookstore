@@ -70,18 +70,12 @@ public class BookPasscodeController {
     }
 
     /**
-     * Get passcodes for a specific book
+     * Get passcodes for a specific book (optimized with JOIN query)
      */
     @GetMapping("/books/{bookId}/passcodes")
     public Result<List<BookPasscodeDTO>> getBookPasscodes(@PathVariable Long bookId) {
-        QueryWrapper<BookPasscode> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("book_id", bookId);
-        queryWrapper.eq("deleted", 0);
-        queryWrapper.orderByDesc("created_at");
-
-        List<BookPasscode> passcodes = passcodeService.list(queryWrapper);
-        List<BookPasscodeDTO> dtoList = convertToDTO(passcodes);
-
+        // Use optimized JOIN query - one SQL query instead of N+1
+        List<BookPasscodeDTO> dtoList = passcodeRepository.selectPasscodesByBookId(bookId);
         return Result.success(dtoList);
     }
 
@@ -199,13 +193,12 @@ public class BookPasscodeController {
     @DeleteMapping("/passcodes/{id}")
     public Result<String> deletePasscode(@PathVariable Long id) {
         BookPasscode passcode = passcodeService.getById(id);
-        if (passcode == null || passcode.getDeleted()) {
+        if (passcode == null) {
             return Result.error("Passcode not found");
         }
 
-        passcode.setDeleted(true);
-        passcode.setUpdatedAt(LocalDateTime.now());
-        passcodeService.updateById(passcode);
+        // Use removeById to trigger @TableLogic soft delete
+        passcodeService.removeById(id);
 
         return Result.success("Deleted successfully");
     }

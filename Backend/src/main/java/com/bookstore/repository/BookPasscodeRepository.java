@@ -50,6 +50,30 @@ public interface BookPasscodeRepository extends BaseMapper<BookPasscode> {
             @Param("offset") int offset);
 
     /**
+     * 根据书籍ID查询口令列表（连接查询）
+     */
+    @Select("SELECT " +
+            "  p.id, p.book_id AS bookId, p.distributor_id AS distributorId, " +
+            "  p.passcode, p.name, p.max_usage AS maxUsage, " +
+            "  p.used_count AS usedCount, p.view_count AS viewCount, " +
+            "  p.status, p.valid_from AS validFrom, p.valid_to AS validTo, " +
+            "  p.created_at AS createdAt, p.updated_at AS updatedAt, " +
+            "  b.title AS bookTitle, " +
+            "  d.name AS distributorName, " +
+            "  COALESCE(os.order_count, 0) AS orderCount, " +
+            "  COALESCE(os.total_amount, 0) AS totalAmount " +
+            "FROM book_passcodes p " +
+            "LEFT JOIN books b ON p.book_id = b.id " +
+            "LEFT JOIN distributors d ON p.distributor_id = d.id " +
+            "LEFT JOIN (" +
+            "  SELECT source_passcode_id, COUNT(*) AS order_count, SUM(amount) AS total_amount " +
+            "  FROM orders WHERE status = 'Paid' GROUP BY source_passcode_id" +
+            ") os ON p.id = os.source_passcode_id " +
+            "WHERE p.deleted = 0 AND p.book_id = #{bookId} " +
+            "ORDER BY p.created_at DESC")
+    List<BookPasscodeDTO> selectPasscodesByBookId(@Param("bookId") Long bookId);
+
+    /**
      * 统计口令总数
      */
     @Select("<script>" +

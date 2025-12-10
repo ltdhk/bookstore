@@ -22,6 +22,9 @@ class CurrentChapterIndex extends _$CurrentChapterIndex {
 /// Provider that fetches all reader data in a single optimized API call
 /// This replaces the previous approach of making 2 separate API calls
 /// (getBookDetails + getBookChapters) with just 1 call (getReaderData)
+///
+/// Note: Auth state changes are handled by ReaderScreen, which invalidates
+/// this provider when user logs in/out to refresh chapter access permissions
 @riverpod
 Future<ReaderData> readerData(Ref ref, int bookId) async {
   final bookService = ref.watch(bookApiServiceProvider);
@@ -29,7 +32,7 @@ Future<ReaderData> readerData(Ref ref, int bookId) async {
   // Single optimized API call that returns:
   // - Book details with chapter count
   // - All chapters with first chapter content
-  // - Subscription status check
+  // - Subscription status check (based on current user's auth state)
   // This reduces DB queries from 5+ to just 3
   return await bookService.getReaderData(bookId);
 }

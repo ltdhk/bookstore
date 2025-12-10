@@ -111,6 +111,8 @@ class ChapterCache extends _$ChapterCache {
 
   @override
   ChapterCacheState build(int bookId) {
+    // Note: Auth state changes are handled by ReaderScreen, which invalidates
+    // this provider when user logs in/out to refresh chapter access permissions
     return const ChapterCacheState();
   }
 
@@ -187,19 +189,24 @@ class ChapterCache extends _$ChapterCache {
 
       // Check if user can access this chapter
       final canAccess = chapterMeta.canAccess ?? chapterMeta.isFree;
+      debugPrint('ChapterCache: Loading chapter $index, canAccess=$canAccess, isFree=${chapterMeta.isFree}, hasContent=${chapterMeta.content != null}');
 
       ChapterVO loadedChapter;
 
       if (!canAccess) {
         // User cannot access this chapter, use metadata only
+        debugPrint('ChapterCache: Chapter $index - no access, using metadata only');
         loadedChapter = chapterMeta;
       } else if (chapterMeta.content != null && chapterMeta.content!.isNotEmpty) {
         // Content already available (e.g., first chapter from ReaderData)
+        debugPrint('ChapterCache: Chapter $index - content already available');
         loadedChapter = chapterMeta;
       } else {
         // Fetch content from API
+        debugPrint('ChapterCache: Chapter $index - fetching from API, chapterId=${chapterMeta.id}');
         final bookService = ref.read(bookApiServiceProvider);
         loadedChapter = await bookService.getChapterDetails(chapterMeta.id);
+        debugPrint('ChapterCache: Chapter $index - API returned content length: ${loadedChapter.content?.length ?? 0}');
       }
 
       // Update state with loaded chapter

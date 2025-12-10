@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:novelpop/src/features/home/presentation/widgets/home_banner.dart';
 import 'package:novelpop/src/features/home/providers/books_pagination_provider.dart';
+import 'package:novelpop/src/features/home/providers/advertisements_provider.dart';
 import 'package:novelpop/src/features/home/data/models/book_vo.dart';
 import 'package:novelpop/src/features/home/data/book_api_service.dart';
 import 'package:novelpop/src/features/settings/data/locale_provider.dart';
@@ -112,7 +113,7 @@ class HomeTabContent extends ConsumerStatefulWidget {
 }
 
 class _HomeTabContentState extends ConsumerState<HomeTabContent>
-    with AutomaticKeepAliveClientMixin {
+    with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -122,13 +123,27 @@ class _HomeTabContentState extends ConsumerState<HomeTabContent>
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // When app resumes from background, retry if books are empty and there was an error
+    if (state == AppLifecycleState.resumed) {
+      final paginationState = ref.read(booksPaginationProvider(widget.category));
+      if (paginationState.books.isEmpty && paginationState.error != null) {
+        ref.read(booksPaginationProvider(widget.category).notifier).refresh();
+      }
+    }
   }
 
   void _onScroll() {
@@ -144,6 +159,8 @@ class _HomeTabContentState extends ConsumerState<HomeTabContent>
   }
 
   Future<void> _onRefresh() async {
+    // Refresh both books and advertisements
+    ref.invalidate(homeBannerAdvertisementsProvider);
     await ref.read(booksPaginationProvider(widget.category).notifier).refresh();
   }
 
@@ -255,11 +272,16 @@ class _HomeTabContentState extends ConsumerState<HomeTabContent>
               ),
             )
           else if (paginationState.books.isEmpty && !paginationState.isLoading)
-            const SliverToBoxAdapter(
+            SliverToBoxAdapter(
               child: Center(
                 child: Padding(
-                  padding: EdgeInsets.all(32.0),
-                  child: Text('No books found'),
+                  padding: const EdgeInsets.all(32.0),
+                  child: paginationState.error != null
+                      ? _NetworkErrorRetryWidget(
+                          onRetry: _onRefresh,
+                          category: widget.category,
+                        )
+                      : const Text('No books found'),
                 ),
               ),
             )
@@ -394,6 +416,56 @@ class _HomeTabContentState extends ConsumerState<HomeTabContent>
           const SliverToBoxAdapter(child: SizedBox(height: 20)),
         ],
       ),
+    );
+  }
+}
+
+/// Widget that auto-retries after network permission is granted
+class _NetworkErrorRetryWidget extends StatefulWidget {
+  final Future<void> Function() onRetry;
+  final String category;
+
+  const _NetworkErrorRetryWidget({
+    required this.onRetry,
+    required this.category,
+  });
+
+  @override
+  State<_NetworkErrorRetryWidget> createState() => _NetworkErrorRetryWidgetState();
+}
+
+class _NetworkErrorRetryWidgetState extends State<_NetworkErrorRetryWidget> {
+  bool _hasAutoRetried = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto retry after 2 seconds (gives time for network permission to be granted)
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted && !_hasAutoRetried) {
+        _hasAutoRetried = true;
+        widget.onRetry();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.wifi_off, size: 48, color: Colors.grey[400]),
+        const SizedBox(height: 16),
+        Text(
+          'Network error, please check your connection',
+          style: TextStyle(color: Colors.grey[600], fontSize: 14),
+        ),
+        const SizedBox(height: 16),
+        ElevatedButton(
+          onPressed: widget.onRetry,
+          child: const Text('Retry'),
+        ),
+      ],
     );
   }
 }

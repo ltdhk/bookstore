@@ -11,6 +11,7 @@ import 'package:screen_brightness/screen_brightness.dart';
 import 'package:flutter_windowmanager/flutter_windowmanager.dart';
 
 import 'package:novelpop/src/features/settings/data/theme_provider.dart';
+import 'package:novelpop/src/features/auth/providers/auth_provider.dart';
 import 'package:novelpop/src/features/reader/providers/chapter_provider.dart';
 import 'package:novelpop/src/features/reader/providers/chapter_cache_provider.dart';
 import 'package:novelpop/src/features/reader/data/models/chapter_vo.dart';
@@ -49,6 +50,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   bool _isRestoringScroll = false;
   bool _shouldRestoreScrollPosition = true;
   bool _isInitialized = false;
+  bool? _lastHasValidSubscription; // Track subscription status to detect changes
 
   // Chapter boundary tracking for seamless scrolling
   final Map<int, GlobalKey> _chapterKeys = {};
@@ -380,10 +382,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   /// Initialize chapter cache with saved progress
   Future<void> _initializeChapterCache(ReaderData readerData) async {
-    if (_isInitialized) return;
-    _isInitialized = true;
-
     debugPrint('ReaderScreen: Initializing chapter cache');
+    _isInitialized = true;
 
     final bookId = int.parse(widget.bookId);
     final progress = await _progressService.getReadingProgress(bookId);
@@ -495,7 +495,30 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final readerDataAsync = ref.watch(readerDataProvider(int.parse(widget.bookId)));
+    final bookId = int.parse(widget.bookId);
+
+    // Listen to auth state changes to refresh data when user logs in/out
+    // This ensures chapter access permissions are refreshed correctly
+    ref.listen(authProvider, (previous, next) {
+      final previousUserId = previous?.value?.id;
+      final nextUserId = next.value?.id;
+      if (previousUserId != nextUserId) {
+        debugPrint('ReaderScreen: Auth state changed, invalidating providers');
+        // Invalidate providers to force refresh
+        // The cache's isInitialized will become false, triggering reinitialization
+        // in _buildReaderContent with the new data
+        ref.invalidate(readerDataProvider(bookId));
+        ref.invalidate(chapterCacheProvider(bookId));
+        // Clear local state for scroll tracking
+        setState(() {
+          _chapterKeys.clear();
+          _chapterHeights.clear();
+          _lastDetectedChapter = -1;
+        });
+      }
+    });
+
+    final readerDataAsync = ref.watch(readerDataProvider(bookId));
     final theme = Theme.of(context);
     final isDarkTheme = theme.brightness == Brightness.dark;
     final isReadingBgDark = _backgroundColor == Colors.black;
@@ -559,22 +582,48 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       return _buildEmptyChaptersView(context, book, readingTextColor);
     }
 
-    // Initialize chapter cache when not initialized
-    if (!_isInitialized) {
+    // Watch chapter cache state first to check if it needs reinitialization
+    final cacheState = ref.watch(chapterCacheProvider(bookId));
+    final currentIndex = ref.watch(currentChapterIndexProvider);
+
+    // Debug: Log chapter access status
+    debugPrint('ReaderScreen: Building content, _isInitialized=$_isInitialized, cacheInitialized=${cacheState.isInitialized}, hasValidSubscription=${readerData.hasValidSubscription}, lastSubscription=$_lastHasValidSubscription');
+    for (int i = 0; i < chapters.length && i < 5; i++) {
+      debugPrint('ReaderScreen: Chapter $i - canAccess=${chapters[i].canAccess}, isFree=${chapters[i].isFree}');
+    }
+
+    // Check if subscription status changed (e.g., user logged in with SVIP)
+    // This ensures we reinitialize with the new access permissions
+    final subscriptionChanged = _lastHasValidSubscription != null &&
+        _lastHasValidSubscription != readerData.hasValidSubscription;
+
+    // Initialize chapter cache when:
+    // 1. Local _isInitialized is false (first load), OR
+    // 2. Cache was invalidated (cacheState.isInitialized is false), OR
+    // 3. Subscription status changed (need to reload with new permissions)
+    final needsInitialization = !_isInitialized || !cacheState.isInitialized || subscriptionChanged;
+    if (needsInitialization) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        debugPrint('ReaderScreen: Initializing chapter cache, _isInitialized=$_isInitialized, cacheInitialized=${cacheState.isInitialized}, subscriptionChanged=$subscriptionChanged');
+        // Invalidate cache if subscription changed to clear old data
+        if (subscriptionChanged) {
+          debugPrint('ReaderScreen: Subscription changed, invalidating cache');
+          ref.invalidate(chapterCacheProvider(bookId));
+        }
         _initializeChapterCache(readerData);
-        ref.read(readingHistoryProvider.notifier).addOrUpdateHistory(
-              bookId: widget.bookId,
-              title: book.title,
-              author: book.author,
-              coverUrl: book.coverUrl,
-            );
+        if (!_isInitialized) {
+          ref.read(readingHistoryProvider.notifier).addOrUpdateHistory(
+                bookId: widget.bookId,
+                title: book.title,
+                author: book.author,
+                coverUrl: book.coverUrl,
+              );
+        }
       });
     }
 
-    // Watch chapter cache state
-    final cacheState = ref.watch(chapterCacheProvider(bookId));
-    final currentIndex = ref.watch(currentChapterIndexProvider);
+    // Update last subscription status
+    _lastHasValidSubscription = readerData.hasValidSubscription;
 
     return Scaffold(
       backgroundColor: _backgroundColor,
