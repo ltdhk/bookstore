@@ -11,6 +11,9 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -55,6 +58,19 @@ public class DashboardServiceImpl implements DashboardService {
                 .map(Order::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         stats.setTotalRevenue(totalRevenue);
+
+        // 今日收益（只统计已支付订单）
+        LocalDateTime todayStart = LocalDate.now().atStartOfDay();
+        LocalDateTime todayEnd = LocalDate.now().atTime(LocalTime.MAX);
+        QueryWrapper<Order> todayOrderQuery = new QueryWrapper<>();
+        todayOrderQuery.eq("status", "Paid")
+                .ge("create_time", todayStart)
+                .le("create_time", todayEnd);
+        List<Order> todayOrders = orderRepository.selectList(todayOrderQuery);
+        BigDecimal todayRevenue = todayOrders.stream()
+                .map(Order::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        stats.setTodayRevenue(todayRevenue);
 
         return stats;
     }

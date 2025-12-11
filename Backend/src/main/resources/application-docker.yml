@@ -94,7 +94,7 @@ iap:
 logging:
   level:
     root: INFO
-    com.bookstore: INFO
+    com.bookstore: DEBUG
   file:
     name: logs/novelpop.log
   pattern:

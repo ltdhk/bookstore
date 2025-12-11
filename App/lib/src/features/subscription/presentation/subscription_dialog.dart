@@ -166,13 +166,24 @@ class _SubscriptionDialogState extends ConsumerState<SubscriptionDialog> {
 
       // 只有在非取消错误时显示 SnackBar
       if (mounted && !error.contains('canceled')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Subscription failed: $error'),
-            backgroundColor: Colors.red[400],
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        // 检测是否是"已订阅"错误
+        if (error == 'ALREADY_SUBSCRIBED') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('You already have an active subscription. Your subscription will auto-renew.'),
+              backgroundColor: Color(0xFF4CAF50),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Subscription failed: $error'),
+              backgroundColor: Colors.red[400],
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
     };
 

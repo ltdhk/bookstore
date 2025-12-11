@@ -1,14 +1,11 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:screen_brightness/screen_brightness.dart';
-import 'package:flutter_windowmanager/flutter_windowmanager.dart';
 
 import 'package:novelpop/src/features/settings/data/theme_provider.dart';
 import 'package:novelpop/src/features/auth/providers/auth_provider.dart';
@@ -69,10 +66,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   String? _bookCoverUrl;
   String _bookCategory = '';
 
-  // iOS screenshot detection
-  static const _iosScreenCaptureChannel = EventChannel('com.novelpop.app/screen_capture');
-  StreamSubscription? _screenCaptureSubscription;
-
   @override
   void initState() {
     super.initState();
@@ -80,65 +73,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     _loadReaderSettings();
     _checkBookshelfStatus();
     _trackPasscodeUsage();
-    _enableScreenshotProtection();
-  }
-
-  /// Enable screenshot protection
-  Future<void> _enableScreenshotProtection() async {
-    if (Platform.isAndroid) {
-      try {
-        await FlutterWindowManager.addFlags(FlutterWindowManager.FLAG_SECURE);
-      } catch (e) {
-        debugPrint('Failed to enable screenshot protection: $e');
-      }
-    } else if (Platform.isIOS) {
-      // Listen for iOS screenshot/screen recording events
-      _screenCaptureSubscription = _iosScreenCaptureChannel.receiveBroadcastStream().listen(
-        (event) {
-          if (event == 'screenshot' || event == 'recording_started') {
-            _showScreenshotWarning();
-          }
-        },
-        onError: (error) {
-          debugPrint('Screen capture detection error: $error');
-        },
-      );
-    }
-  }
-
-  /// Disable screenshot protection when leaving the screen
-  Future<void> _disableScreenshotProtection() async {
-    if (Platform.isAndroid) {
-      try {
-        await FlutterWindowManager.clearFlags(FlutterWindowManager.FLAG_SECURE);
-      } catch (e) {
-        debugPrint('Failed to disable screenshot protection: $e');
-      }
-    } else if (Platform.isIOS) {
-      _screenCaptureSubscription?.cancel();
-      _screenCaptureSubscription = null;
-    }
-  }
-
-  /// Show warning dialog when screenshot is detected (iOS)
-  void _showScreenshotWarning() {
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Screenshot Detected'),
-        content: const Text(
-          'Screenshots of copyrighted content are not allowed. '
-          'Please respect the intellectual property rights of the authors.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -149,7 +83,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     _scrollController.removeListener(_handleScroll);
     _scrollController.dispose();
     _resetScreenBrightness();
-    _disableScreenshotProtection();
     super.dispose();
   }
 

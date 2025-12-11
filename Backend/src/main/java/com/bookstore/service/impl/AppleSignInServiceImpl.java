@@ -46,9 +46,19 @@ public class AppleSignInServiceImpl implements AppleSignInService {
         // 1. Verify the identity token and extract claims
         AppleTokenClaims claims = verifyIdentityToken(request.getIdentityToken());
 
-        // 2. Find existing user by Apple user ID
+        // 2. Find existing user by Apple user ID (including soft-deleted users)
         User user = userMapper.selectOne(new LambdaQueryWrapper<User>()
                 .eq(User::getAppleUserId, claims.sub));
+
+        // 2.1 If not found, check for soft-deleted user with same Apple ID
+        if (user == null) {
+            user = findDeletedUserByAppleId(claims.sub);
+            if (user != null) {
+                // Restore the soft-deleted user
+                restoreDeletedUser(user);
+                log.info("Restored soft-deleted user by Apple ID: {}", user.getId());
+            }
+        }
 
         if (user == null) {
             // 3. Try to find by email and link accounts
@@ -56,7 +66,20 @@ public class AppleSignInServiceImpl implements AppleSignInService {
             if (email != null && !email.isEmpty()) {
                 user = userMapper.selectOne(new LambdaQueryWrapper<User>()
                         .eq(User::getEmail, email));
-                if (user != null) {
+
+                // 3.1 If not found, check for soft-deleted user with same email
+                if (user == null) {
+                    user = findDeletedUserByEmail(email);
+                    if (user != null) {
+                        // Restore the soft-deleted user and link Apple ID
+                        restoreDeletedUser(user);
+                        user.setAppleUserId(claims.sub);
+                        userMapper.updateById(user);
+                        log.info("Restored soft-deleted user by email and linked Apple ID: {}", user.getId());
+                    }
+                }
+
+                if (user != null && user.getAppleUserId() == null) {
                     // Link Apple ID to existing account
                     user.setAppleUserId(claims.sub);
                     userMapper.updateById(user);
@@ -72,6 +95,28 @@ public class AppleSignInServiceImpl implements AppleSignInService {
 
         // 5. Generate JWT and return UserVO
         return convertToVO(user);
+    }
+
+    /**
+     * Find soft-deleted user by Apple ID (bypassing @TableLogic)
+     */
+    private User findDeletedUserByAppleId(String appleUserId) {
+        return userMapper.selectDeletedByAppleUserId(appleUserId);
+    }
+
+    /**
+     * Find soft-deleted user by email (bypassing @TableLogic)
+     */
+    private User findDeletedUserByEmail(String email) {
+        return userMapper.selectDeletedByEmail(email);
+    }
+
+    /**
+     * Restore a soft-deleted user
+     */
+    private void restoreDeletedUser(User user) {
+        userMapper.restoreUser(user.getId());
+        user.setDeleted(0);
     }
 
     private AppleTokenClaims verifyIdentityToken(String identityToken) {

@@ -38,9 +38,19 @@ public class GoogleSignInServiceImpl implements GoogleSignInService {
         // 1. Verify the ID token and extract claims
         GoogleTokenClaims claims = verifyIdToken(request.getIdToken());
 
-        // 2. Find existing user by Google user ID
+        // 2. Find existing user by Google user ID (including soft-deleted users)
         User user = userMapper.selectOne(new LambdaQueryWrapper<User>()
                 .eq(User::getGoogleUserId, claims.sub));
+
+        // 2.1 If not found, check for soft-deleted user with same Google ID
+        if (user == null) {
+            user = findDeletedUserByGoogleId(claims.sub);
+            if (user != null) {
+                // Restore the soft-deleted user
+                restoreDeletedUser(user);
+                log.info("Restored soft-deleted user by Google ID: {}", user.getId());
+            }
+        }
 
         if (user == null) {
             // 3. Try to find by email and link accounts
@@ -48,7 +58,21 @@ public class GoogleSignInServiceImpl implements GoogleSignInService {
             if (email != null && !email.isEmpty()) {
                 user = userMapper.selectOne(new LambdaQueryWrapper<User>()
                         .eq(User::getEmail, email));
-                if (user != null) {
+
+                // 3.1 If not found, check for soft-deleted user with same email
+                if (user == null) {
+                    user = findDeletedUserByEmail(email);
+                    if (user != null) {
+                        // Restore the soft-deleted user and link Google ID
+                        restoreDeletedUser(user);
+                        user.setGoogleUserId(claims.sub);
+                        userMapper.updateById(user);
+                        log.info("Restored soft-deleted user by email and linked Google ID: {}", user.getId());
+                    }
+                }
+
+                if (user != null && user.getGoogleUserId() == null) {
+                    // Link Google ID to existing account
                     user.setGoogleUserId(claims.sub);
                     userMapper.updateById(user);
                     log.info("Linked Google ID to existing user: {}", user.getId());
@@ -63,6 +87,28 @@ public class GoogleSignInServiceImpl implements GoogleSignInService {
 
         // 5. Generate JWT and return UserVO
         return convertToVO(user);
+    }
+
+    /**
+     * Find soft-deleted user by Google ID (bypassing @TableLogic)
+     */
+    private User findDeletedUserByGoogleId(String googleUserId) {
+        return userMapper.selectDeletedByGoogleUserId(googleUserId);
+    }
+
+    /**
+     * Find soft-deleted user by email (bypassing @TableLogic)
+     */
+    private User findDeletedUserByEmail(String email) {
+        return userMapper.selectDeletedByEmail(email);
+    }
+
+    /**
+     * Restore a soft-deleted user
+     */
+    private void restoreDeletedUser(User user) {
+        userMapper.restoreUser(user.getId());
+        user.setDeleted(0);
     }
 
     private GoogleTokenClaims verifyIdToken(String idTokenString) {

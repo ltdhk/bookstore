@@ -29,6 +29,7 @@ const Dashboard: React.FC = () => {
     totalBooks: 0,
     totalOrders: 0,
     totalRevenue: 0,
+    todayRevenue: 0,
   });
   const [passcodeRanking, setPasscodeRanking] = useState<PasscodeRanking[]>([]);
   const [distributorRanking, setDistributorRanking] = useState<DistributorRevenueRanking[]>([]);

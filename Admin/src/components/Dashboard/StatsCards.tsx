@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, Col, Row, Statistic } from 'antd';
-import { UserOutlined, BookOutlined, DollarOutlined, ShoppingOutlined } from '@ant-design/icons';
+import { UserOutlined, BookOutlined, DollarOutlined, ShoppingOutlined, RiseOutlined } from '@ant-design/icons';
 import type { DashboardStats } from '../../api/dashboard';
 
 interface StatsCardsProps {
@@ -16,7 +16,7 @@ const StatsCards: React.FC<StatsCardsProps> = ({ stats, loading }) => {
 
   return (
     <Row gutter={[16, 16]}>
-      <Col xs={24} sm={12} lg={6}>
+      <Col xs={24} sm={12} lg={4}>
         <Card loading={loading} bordered={false} style={cardStyle}>
           <Statistic
             title="总用户数"
@@ -26,7 +26,7 @@ const StatsCards: React.FC<StatsCardsProps> = ({ stats, loading }) => {
           />
         </Card>
       </Col>
-      <Col xs={24} sm={12} lg={6}>
+      <Col xs={24} sm={12} lg={4}>
         <Card loading={loading} bordered={false} style={cardStyle}>
           <Statistic
             title="书籍总数"
@@ -36,7 +36,7 @@ const StatsCards: React.FC<StatsCardsProps> = ({ stats, loading }) => {
           />
         </Card>
       </Col>
-      <Col xs={24} sm={12} lg={6}>
+      <Col xs={24} sm={12} lg={4}>
         <Card loading={loading} bordered={false} style={cardStyle}>
           <Statistic
             title="总订单数"
@@ -55,6 +55,18 @@ const StatsCards: React.FC<StatsCardsProps> = ({ stats, loading }) => {
             prefix="¥"
             suffix={<DollarOutlined style={{ fontSize: 20, marginLeft: 4 }} />}
             valueStyle={{ color: '#f5222d', fontSize: 28, fontWeight: 600 }}
+          />
+        </Card>
+      </Col>
+      <Col xs={24} sm={12} lg={6}>
+        <Card loading={loading} bordered={false} style={cardStyle}>
+          <Statistic
+            title="今日收益"
+            value={stats.todayRevenue || 0}
+            precision={2}
+            prefix="¥"
+            suffix={<RiseOutlined style={{ fontSize: 20, marginLeft: 4 }} />}
+            valueStyle={{ color: '#52c41a', fontSize: 28, fontWeight: 600 }}
           />
         </Card>
       </Col>

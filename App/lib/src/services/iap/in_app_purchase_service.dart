@@ -580,11 +580,13 @@ class InAppPurchaseService {
 
   /// Handle purchase error
   Future<void> _handleError(PurchaseDetails purchase) async {
-    final error = purchase.error?.message ?? 'Unknown error';
+    final originalError = purchase.error?.message ?? 'Unknown error';
     debugPrint('========== 处理购买错误 ==========');
     debugPrint('产品ID: ${purchase.productID}');
     debugPrint('交易ID: ${purchase.purchaseID}');
-    debugPrint('错误信息: $error');
+    debugPrint('错误信息: $originalError');
+    debugPrint('错误代码: ${purchase.error?.code}');
+    debugPrint('错误详情: ${purchase.error?.details}');
     debugPrint('需要完成交易: ${purchase.pendingCompletePurchase}');
 
     // 完成交易以清理队列，防止堵塞后续购买
@@ -598,7 +600,27 @@ class InAppPurchaseService {
       }
     }
 
-    _safeCallError(purchase, error);
+    // 检测是否是"已订阅此项目"的错误（Apple错误码3532）
+    // 错误信息可能包含: "已订阅此项目", "already subscribed", 错误码 3532
+    final errorStr = originalError.toLowerCase();
+    final detailsStr = (purchase.error?.details?.toString() ?? '').toLowerCase();
+    final isAlreadySubscribedError =
+        errorStr.contains('已订阅') ||
+        errorStr.contains('already subscribed') ||
+        errorStr.contains('3532') ||
+        detailsStr.contains('3532') ||
+        detailsStr.contains('已订阅');
+
+    String displayError;
+    if (isAlreadySubscribedError) {
+      // 提供更友好的错误信息
+      displayError = 'ALREADY_SUBSCRIBED';
+      debugPrint('检测到已订阅错误，将显示友好提示');
+    } else {
+      displayError = originalError;
+    }
+
+    _safeCallError(purchase, displayError);
     debugPrint('========== 购买错误处理完成 ==========');
   }
 

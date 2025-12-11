@@ -29,6 +29,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.List;
 import java.util.Random;
@@ -202,24 +203,22 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         }
 
         LocalDateTime currentEndDate = user.getSubscriptionEndDate();
-        LocalDateTime newEndDate = order.getSubscriptionEndDate();
+        LocalDateTime now = LocalDateTime.now();
         LocalDateTime finalEndDate;
 
-        // 取两者中较晚的时间，避免用户损失已付费时长
-        if (currentEndDate != null && currentEndDate.isAfter(newEndDate)) {
-            finalEndDate = currentEndDate;
-            log.warn("用户 {} 已有更晚的订阅到期时间 {} (新订阅: {})，保持原时间不变",
-                     userId, currentEndDate, newEndDate);
-        } else if (currentEndDate != null && currentEndDate.isAfter(LocalDateTime.now())) {
-            // 新订阅时间更晚，但旧订阅还没过期
-            finalEndDate = newEndDate;
-            long remainingDays = java.time.temporal.ChronoUnit.DAYS.between(LocalDateTime.now(), currentEndDate);
-            log.info("用户 {} 原订阅剩余 {} 天 (到期: {})，更新为新到期时间: {}",
-                     userId, remainingDays, currentEndDate, newEndDate);
+        // 获取订阅天数
+        long subscriptionDays = getSubscriptionDays(order);
+
+        if (currentEndDate != null && currentEndDate.isAfter(now)) {
+            // 当前会员未过期 -> 在现有到期时间基础上增加订阅天数
+            finalEndDate = currentEndDate.plusDays(subscriptionDays);
+            long remainingDays = ChronoUnit.DAYS.between(now, currentEndDate);
+            log.info("用户 {} 会员未过期 (到期: {}, 剩余 {} 天)，在此基础上增加 {} 天，新到期时间: {}",
+                     userId, currentEndDate, remainingDays, subscriptionDays, finalEndDate);
         } else {
-            // 无旧订阅或旧订阅已过期
-            finalEndDate = newEndDate;
-            log.info("用户 {} 订阅更新为: {}", userId, newEndDate);
+            // 无订阅或已过期 -> 使用订单的到期时间
+            finalEndDate = order.getSubscriptionEndDate();
+            log.info("用户 {} 订阅已过期或无订阅，设置新到期时间: {}", userId, finalEndDate);
         }
 
         user.setIsSvip(true);
@@ -231,6 +230,34 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         log.info("用户 {} 订阅状态已更新 - 最终到期时间: {}", userId, finalEndDate);
     }
 
+    /**
+     * 获取订阅天数
+     * 优先从产品表获取 durationDays，备用从订单时间计算
+     */
+    private long getSubscriptionDays(Order order) {
+        // 方式1: 从产品表获取 durationDays
+        if (order.getProductId() != null) {
+            SubscriptionProduct product = subscriptionProductRepository.selectOne(
+                new QueryWrapper<SubscriptionProduct>().eq("product_id", order.getProductId())
+            );
+            if (product != null && product.getDurationDays() != null) {
+                return product.getDurationDays();
+            }
+        }
+
+        // 方式2: 从订单的开始和结束时间计算
+        if (order.getSubscriptionStartDate() != null && order.getSubscriptionEndDate() != null) {
+            return ChronoUnit.DAYS.between(
+                order.getSubscriptionStartDate(),
+                order.getSubscriptionEndDate()
+            );
+        }
+
+        // 默认值（不应该到达这里）
+        log.warn("无法确定订阅天数，订单: {}，使用默认值 30 天", order.getOrderNo());
+        return 30;
+    }
+
     @Override
     public boolean isSubscriptionValid(Long userId) {
         User user = userMapper.selectById(userId);
@@ -238,7 +265,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             return false;
         }
 
-        // Check if user is SVIP (manual assignment or active subscription)
+        // Only check SVIP status
         if (Boolean.TRUE.equals(user.getIsSvip())) {
             // If user has subscriptionEndDate, check if it's still valid
             if (user.getSubscriptionEndDate() != null) {
@@ -248,16 +275,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             return true;
         }
 
-        // Check subscription status for non-SVIP users
-        if (!"active".equals(user.getSubscriptionStatus())) {
-            return false;
-        }
-
-        if (user.getSubscriptionEndDate() == null) {
-            return false;
-        }
-
-        return LocalDateTime.now().isBefore(user.getSubscriptionEndDate());
+        return false;
     }
 
     @Override
@@ -265,8 +283,10 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     public void processExpiredSubscriptions() {
         log.info("开始批量处理过期订阅...");
 
+        // 查询 isSvip = true 且 subscriptionEndDate < now 的用户（已过期的SVIP）
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("subscription_status", "active");
+        queryWrapper.eq("is_svip", true);
+        queryWrapper.isNotNull("subscription_end_date");
         queryWrapper.lt("subscription_end_date", LocalDateTime.now());
 
         List<User> expiredUsers = userMapper.selectList(queryWrapper);

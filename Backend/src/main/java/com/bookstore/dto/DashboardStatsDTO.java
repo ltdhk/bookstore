@@ -10,4 +10,5 @@ public class DashboardStatsDTO {
     private Long totalBooks;
     private Long totalOrders;
     private BigDecimal totalRevenue;
+    private BigDecimal todayRevenue;
 }

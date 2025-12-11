@@ -7,6 +7,7 @@ export interface DashboardStats {
   totalBooks: number;
   totalOrders: number;
   totalRevenue: number;
+  todayRevenue: number;
 }
 
 export interface PasscodeRanking {
