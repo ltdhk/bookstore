@@ -78,4 +78,7 @@ key/
 
 # Documentation (local only)
 Docs/SETUP.md
-Deploment/
+
+# Deployment (contains secrets)
+Deploy/.env
+Deploy/nginx/ssl/

@@ -172,12 +172,7 @@ sudo certbot certonly --manual \
 # 记录类型: TXT
 # 记录名: _acme-challenge.api
 # 记录值: （Certbot 会提供）
-```
-
-**方法三：使用 webroot 模式（与 Nginx 配合，推荐用于续期）**
-
-```bash
-# 在非标准端口上使用 webroot 验证
+```dcf/g//dfs
 # 需要配置 Nginx 的 /.well-known/acme-challenge/ 路径
 # 详见下方的 Nginx 配置
 ```

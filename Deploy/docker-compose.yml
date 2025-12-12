@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  # MySQL 8.0 数据库服务
+  mysql:
+    image: mysql:8.0
+    container_name: novelpop-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${DB_NAME:-novelpop_db}
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
+      TZ: Asia/Shanghai
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./mysql/conf/my.cnf:/etc/mysql/conf.d/my.cnf:ro
+      - ./mysql/data:/var/lib/mysql
+      - ./mysql/logs:/var/log/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - novelpop-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:-rootpassword}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Spring Boot 后端服务
+  backend:
+    image: eclipse-temurin:17-jre
+    container_name: novelpop-backend
+    restart: always
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${DB_NAME:-novelpop_db}?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-rootpassword}
+      AWS_ACCESS_KEY: ${AWS_ACCESS_KEY}
+      AWS_SECRET_KEY: ${AWS_SECRET_KEY}
+      APPLE_TEAM_ID: ${APPLE_TEAM_ID}
+      APPLE_KEY_ID: ${APPLE_KEY_ID}
+      APPLE_CLIENT_ID: ${APPLE_CLIENT_ID:-com.novel.pop}
+      GOOGLE_WEB_CLIENT_ID: ${GOOGLE_WEB_CLIENT_ID}
+      GOOGLE_ANDROID_CLIENT_ID: ${GOOGLE_ANDROID_CLIENT_ID}
+      GOOGLE_IOS_CLIENT_ID: ${GOOGLE_IOS_CLIENT_ID}
+      APPLE_SHARED_SECRET: ${APPLE_SHARED_SECRET}
+      JAVA_OPTS: -Xms1024m -Xmx2048m -Duser.timezone=Asia/Shanghai
+      TZ: Asia/Shanghai
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./backend/app/app.jar:/app/app.jar:ro
+      - ./backend/logs:/app/logs
+      - ./backend/config:/app/config:ro
+    working_dir: /app
+    command: ["java", "-jar", "/app/app.jar"]
+    networks:
+      - novelpop-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Nginx 反向代理和静态文件服务
+  nginx:
+    image: nginx:alpine
+    container_name: novelpop-nginx
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "81:80"
+      - "4433:443"
+    volumes:
+      - ./nginx/conf/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/logs:/var/log/nginx
+      - ./nginx/html:/usr/share/nginx/html:ro
+      - ./nginx/certbot:/var/www/certbot:ro
+    networks:
+      - novelpop-network
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Portainer Docker 管理界面
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: novelpop-portainer
+    restart: always
+    ports:
+      - "9090:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./portainer/data:/data
+    networks:
+      - novelpop-network
+
+networks:
+  novelpop-network:
+    driver: bridge
