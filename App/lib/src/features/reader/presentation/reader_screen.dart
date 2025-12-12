@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:screen_brightness/screen_brightness.dart';
+import 'package:no_screenshot/no_screenshot.dart';
 
 import 'package:novelpop/src/features/settings/data/theme_provider.dart';
 import 'package:novelpop/src/features/auth/providers/auth_provider.dart';
@@ -29,6 +30,9 @@ class ReaderScreen extends ConsumerStatefulWidget {
 }
 
 class _ReaderScreenState extends ConsumerState<ReaderScreen> {
+  // Screenshot protection
+  final _noScreenshot = NoScreenshot.instance;
+
   // Reader settings
   double _fontSize = 18.0;
   Color _backgroundColor = Colors.white;
@@ -69,14 +73,24 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   @override
   void initState() {
     super.initState();
+    _enableScreenshotProtection();
     _scrollController.addListener(_handleScroll);
     _loadReaderSettings();
     _checkBookshelfStatus();
     _trackPasscodeUsage();
   }
 
+  Future<void> _enableScreenshotProtection() async {
+    await _noScreenshot.screenshotOff();
+  }
+
+  Future<void> _disableScreenshotProtection() async {
+    await _noScreenshot.screenshotOn();
+  }
+
   @override
   void dispose() {
+    _disableScreenshotProtection();
     _saveProgressTimer?.cancel();
     _chapterDetectionDebounce?.cancel();
     _saveCurrentProgress();
@@ -1002,9 +1016,18 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       ),
       onPressed: () async {
         final scaffoldMessenger = ScaffoldMessenger.of(context);
+        // 在 await 之前获取 notifier 引用，避免 widget 销毁后使用 ref
+        final bookshelfNotifier = ref.read(bookshelfProvider.notifier);
+        final bookId = widget.bookId;
+        final bookTitle = _bookTitle;
+        final bookAuthor = _bookAuthor;
+        final bookCoverUrl = _bookCoverUrl;
+        final bookCategory = _bookCategory;
+        final wasInBookshelf = _isInBookshelf;
+
         try {
-          if (_isInBookshelf) {
-            await ref.read(bookshelfProvider.notifier).removeBook(widget.bookId);
+          if (wasInBookshelf) {
+            await bookshelfNotifier.removeBook(bookId);
             if (mounted) {
               setState(() {
                 _isInBookshelf = false;
@@ -1014,12 +1037,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               );
             }
           } else {
-            await ref.read(bookshelfProvider.notifier).addBook(
-                  id: widget.bookId,
-                  title: _bookTitle,
-                  author: _bookAuthor,
-                  coverUrl: _bookCoverUrl,
-                  category: _bookCategory,
+            await bookshelfNotifier.addBook(
+                  id: bookId,
+                  title: bookTitle,
+                  author: bookAuthor,
+                  coverUrl: bookCoverUrl,
+                  category: bookCategory,
                 );
             if (mounted) {
               setState(() {

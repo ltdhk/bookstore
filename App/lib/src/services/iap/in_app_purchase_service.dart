@@ -32,6 +32,9 @@ class InAppPurchaseService {
   // 已完成的交易ID集合（从持久化存储加载，防止 App 重启后重复处理）
   Set<String> _completedTransactionIds = {};
 
+  // 当前购买会话是否已通知成功（防止多个重复交易都触发 success 回调）
+  bool _hasNotifiedSuccessInSession = false;
+
   // Callbacks for purchase events
   Function(PurchaseDetails)? onPurchaseSuccess;
   Function(PurchaseDetails, String)? onPurchaseError;
@@ -311,6 +314,9 @@ class InAppPurchaseService {
     int? sourceBookId,
     String? sourceEntry,
   }) async {
+    // 重置会话状态，开始新的购买流程
+    _hasNotifiedSuccessInSession = false;
+
     try {
       final purchaseParam = PurchaseParam(
         productDetails: productDetails,
@@ -531,15 +537,24 @@ class InAppPurchaseService {
         }
       }
 
-      // For duplicate purchases, treat as success
+      // For duplicate purchases, treat as success but only call callback once
       if (isDuplicateError) {
         debugPrint('========== 检测到重复交易 ==========');
         debugPrint('交易已在之前成功处理，完成当前交易以停止重试');
+
+        // 检查该交易是否已经调用过 success 回调
+        final alreadyNotified = _completedTransactionIds.contains(transactionId);
+
         // 将交易ID保存到持久化存储
         await _saveCompletedTransactionId(transactionId);
         await _clearPurchaseContext();
-        // Notify success (安全调用)
-        _safeCallSuccess(purchase);
+
+        // 只有第一次处理时才调用 success 回调，避免重复 pop dialog
+        if (!alreadyNotified) {
+          _safeCallSuccess(purchase);
+        } else {
+          debugPrint('⚠️ 该交易已通知过成功，跳过重复的 success 回调');
+        }
         debugPrint('========== 重复交易处理完成 ==========');
       } else {
         // Notify error to UI (安全调用)
@@ -556,8 +571,15 @@ class InAppPurchaseService {
 
   /// 安全调用成功回调（捕获异常避免崩溃）
   void _safeCallSuccess(PurchaseDetails purchase) {
+    // 防止同一购买会话中多次调用 success 回调
+    if (_hasNotifiedSuccessInSession) {
+      debugPrint('⚠️ 当前会话已通知过成功，跳过重复的 success 回调');
+      return;
+    }
+
     try {
       if (onPurchaseSuccess != null) {
+        _hasNotifiedSuccessInSession = true;
         onPurchaseSuccess?.call(purchase);
         debugPrint('onPurchaseSuccess 回调已执行');
       } else {

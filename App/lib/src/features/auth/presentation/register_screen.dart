@@ -1,6 +1,8 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:novelpop/src/features/auth/providers/auth_provider.dart';
 import 'package:novelpop/src/utils/crypto_utils.dart';
 
@@ -379,22 +381,36 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             color: isDark ? Colors.grey[400] : Colors.grey[600],
                             fontSize: 12,
                           ),
-                          children: const [
-                            TextSpan(text: 'I agree to the '),
+                          children: [
+                            const TextSpan(text: 'I agree to the '),
                             TextSpan(
                               text: 'User Agreement',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: Color(0xFFFF6B9D),
                                 decoration: TextDecoration.underline,
                               ),
+                              recognizer: TapGestureRecognizer()
+                                ..onTap = () {
+                                  launchUrl(
+                                    Uri.parse('https://sites.google.com/cdex.me/novel-pop-user-agreement/'),
+                                    mode: LaunchMode.externalApplication,
+                                  );
+                                },
                             ),
-                            TextSpan(text: ' and '),
+                            const TextSpan(text: ' and '),
                             TextSpan(
                               text: 'Privacy Policy',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: Color(0xFFFF6B9D),
                                 decoration: TextDecoration.underline,
                               ),
+                              recognizer: TapGestureRecognizer()
+                                ..onTap = () {
+                                  launchUrl(
+                                    Uri.parse('https://sites.google.com/cdex.me/novel-pop/'),
+                                    mode: LaunchMode.externalApplication,
+                                  );
+                                },
                             ),
                           ],
                         ),

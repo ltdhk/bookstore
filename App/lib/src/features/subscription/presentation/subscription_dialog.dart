@@ -29,6 +29,7 @@ class _SubscriptionDialogState extends ConsumerState<SubscriptionDialog> {
   bool _isProcessing = false;
   Map<String, ProductDetails>? _iapProducts;
   bool _iapAvailable = false;
+  bool _hasPopped = false; // 防止多次 pop 导致黑屏
 
   @override
   void initState() {
@@ -112,6 +113,12 @@ class _SubscriptionDialogState extends ConsumerState<SubscriptionDialog> {
     iapService.onPurchaseSuccess = (purchase) async {
       debugPrint('Purchase successful in dialog: ${purchase.productID}');
 
+      // 防止多次调用导致多次 pop
+      if (_hasPopped) {
+        debugPrint('Dialog already popped, skipping duplicate success callback');
+        return;
+      }
+
       // Stop processing indicator first
       if (mounted) {
         setState(() {
@@ -142,7 +149,8 @@ class _SubscriptionDialogState extends ConsumerState<SubscriptionDialog> {
         debugPrint('Failed to refresh profile: $e');
       }
 
-      if (mounted) {
+      if (mounted && !_hasPopped) {
+        _hasPopped = true;
         Navigator.of(context).pop(true);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

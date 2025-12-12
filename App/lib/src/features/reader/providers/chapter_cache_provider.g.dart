@@ -61,7 +61,7 @@ final class ChapterCacheProvider
   }
 }
 
-String _$chapterCacheHash() => r'77a3a2cdd171d7d06f6bdfeb930441c01c41ca6a';
+String _$chapterCacheHash() => r'a419b3619f69854cfdedac4aa1dc491e0b9e1103';
 
 /// Manages chapter caching for seamless reading experience
 

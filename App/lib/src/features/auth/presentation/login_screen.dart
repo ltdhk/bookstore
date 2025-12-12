@@ -258,23 +258,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
-                // Forgot password
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () {
-                      // TODO: Implement forgot password
-                    },
-                    child: const Text(
-                      'Forgot Password?',
-                      style: TextStyle(
-                        color: Color(0xFFFF6B9D),
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                ),
                 const SizedBox(height: 24),
                 // Login button
                 SizedBox(

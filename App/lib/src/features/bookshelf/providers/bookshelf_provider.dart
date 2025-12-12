@@ -20,7 +20,10 @@ class Bookshelf extends _$Bookshelf {
     String? coverUrl,
     required String category,
   }) async {
-    final storage = ref.read(bookshelfLocalStorageProvider).requireValue;
+    // 在异步操作前获取 storage 引用
+    final storageAsync = ref.read(bookshelfLocalStorageProvider);
+    final storage = storageAsync.requireValue;
+
     final book = BookshelfItem(
       id: id,
       title: title,
@@ -31,21 +34,45 @@ class Bookshelf extends _$Bookshelf {
     );
 
     await storage.addBook(book);
-    ref.invalidateSelf();
+
+    // 安全地调用 invalidateSelf，捕获可能的异常
+    try {
+      ref.invalidateSelf();
+    } catch (e) {
+      // Provider 可能已被 dispose，忽略此错误
+    }
   }
 
   /// Remove a book from bookshelf
   Future<void> removeBook(String bookId) async {
-    final storage = ref.read(bookshelfLocalStorageProvider).requireValue;
+    // 在异步操作前获取 storage 引用
+    final storageAsync = ref.read(bookshelfLocalStorageProvider);
+    final storage = storageAsync.requireValue;
+
     await storage.removeBook(bookId);
-    ref.invalidateSelf();
+
+    // 安全地调用 invalidateSelf，捕获可能的异常
+    try {
+      ref.invalidateSelf();
+    } catch (e) {
+      // Provider 可能已被 dispose，忽略此错误
+    }
   }
 
   /// Remove multiple books from bookshelf
   Future<void> removeBooks(List<String> bookIds) async {
-    final storage = ref.read(bookshelfLocalStorageProvider).requireValue;
+    // 在异步操作前获取 storage 引用
+    final storageAsync = ref.read(bookshelfLocalStorageProvider);
+    final storage = storageAsync.requireValue;
+
     await storage.removeBooks(bookIds);
-    ref.invalidateSelf();
+
+    // 安全地调用 invalidateSelf，捕获可能的异常
+    try {
+      ref.invalidateSelf();
+    } catch (e) {
+      // Provider 可能已被 dispose，忽略此错误
+    }
   }
 
   /// Check if a book is in bookshelf
