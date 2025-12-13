@@ -291,6 +291,60 @@ class ChapterCache extends _$ChapterCache {
     await _loadChapterContent(index, readerData);
   }
 
+  /// Force reload all currently loaded chapters (e.g., after auth/subscription change)
+  /// This refreshes chapter content with new permissions while keeping UI stable
+  Future<void> reloadAllChapters(ReaderData readerData) async {
+    if (!state.isInitialized) return;
+
+    final indicesToReload = state.loadedChapters.keys.toList();
+    if (indicesToReload.isEmpty) return;
+
+    debugPrint('ChapterCache: Reloading ${indicesToReload.length} chapters after permission change');
+
+    // 不清空 loadedChapters，而是逐个重新加载并替换
+    // 这样可以保持 UI 稳定，避免闪烁
+    for (final index in indicesToReload) {
+      await _reloadChapterInPlace(index, readerData);
+    }
+
+    debugPrint('ChapterCache: Finished reloading chapters');
+  }
+
+  /// Reload a single chapter in place (without clearing it first)
+  Future<void> _reloadChapterInPlace(int index, ReaderData readerData) async {
+    try {
+      final chapters = readerData.chapters;
+      if (index < 0 || index >= chapters.length) return;
+
+      final chapterMeta = chapters[index];
+      final canAccess = chapterMeta.canAccess ?? chapterMeta.isFree;
+
+      debugPrint('ChapterCache: Reloading chapter $index, canAccess=$canAccess');
+
+      ChapterVO loadedChapter;
+
+      if (!canAccess) {
+        // 无权限，使用元数据
+        loadedChapter = chapterMeta;
+      } else if (chapterMeta.content != null && chapterMeta.content!.isNotEmpty) {
+        // 内容已在 readerData 中
+        loadedChapter = chapterMeta;
+      } else {
+        // 从 API 获取内容
+        final bookService = ref.read(bookApiServiceProvider);
+        loadedChapter = await bookService.getChapterDetails(chapterMeta.id);
+      }
+
+      // 直接更新缓存中的章节
+      final newLoadedChapters = Map<int, ChapterVO>.from(state.loadedChapters);
+      newLoadedChapters[index] = loadedChapter;
+
+      state = state.copyWith(loadedChapters: newLoadedChapters);
+    } catch (e) {
+      debugPrint('ChapterCache: Failed to reload chapter $index: $e');
+    }
+  }
+
   /// Clear all cache
   void clearCache() {
     state = const ChapterCacheState();

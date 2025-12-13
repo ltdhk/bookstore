@@ -53,6 +53,15 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   bool _isInitialized = false;
   bool? _lastHasValidSubscription; // Track subscription status to detect changes
 
+  // 初始化锁：防止初始化期间章节检测和进度保存干扰
+  bool _isInitializing = false;
+
+  // 标记：订阅/登录状态变化后保持当前位置
+  bool _keepCurrentPositionOnReinit = false;
+
+  // 保存状态变化前的滚动位置，用于恢复
+  double? _savedScrollOffsetBeforeReinit;
+
   // Chapter boundary tracking for seamless scrolling
   final Map<int, GlobalKey> _chapterKeys = {};
   final Map<int, double> _chapterHeights = {};
@@ -66,6 +75,29 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   // Cache book info for bookshelf operations
   String _bookTitle = '';
+
+  /// 计算有效阅读位置：找到指定索引或之前最后一个可访问的章节
+  /// 这确保我们只保存和恢复到用户实际能阅读的章节
+  int _findEffectiveReadingPosition(List<ChapterVO> chapters, int targetIndex) {
+    final clampedIndex = targetIndex.clamp(0, chapters.length - 1);
+
+    // 从目标位置向前查找第一个可访问的章节
+    for (int i = clampedIndex; i >= 0; i--) {
+      final chapter = chapters[i];
+      final canAccess = chapter.canAccess ?? chapter.isFree;
+      if (canAccess) {
+        return i;
+      }
+    }
+
+    // 如果都不可访问，返回第一章（通常第一章免费）
+    return 0;
+  }
+
+  /// 检查章节是否可访问
+  bool _isChapterAccessible(ChapterVO chapter) {
+    return chapter.canAccess ?? chapter.isFree;
+  }
   String _bookAuthor = '';
   String? _bookCoverUrl;
   String _bookCategory = '';
@@ -93,11 +125,57 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     _disableScreenshotProtection();
     _saveProgressTimer?.cancel();
     _chapterDetectionDebounce?.cancel();
-    _saveCurrentProgress();
+    // 强制保存进度（忽略 _isInitializing 标志）
+    _forceSaveCurrentProgress();
     _scrollController.removeListener(_handleScroll);
     _scrollController.dispose();
     _resetScreenBrightness();
     super.dispose();
+  }
+
+  /// 强制保存当前进度，用于 dispose 时
+  /// 与 _saveCurrentProgress 不同，这个方法不检查 _isInitializing
+  Future<void> _forceSaveCurrentProgress() async {
+    if (!_scrollController.hasClients) return;
+
+    final bookId = int.parse(widget.bookId);
+    final readerDataAsync = ref.read(readerDataProvider(bookId));
+
+    readerDataAsync.whenData((readerData) async {
+      final chapters = readerData.chapters;
+      if (chapters.isEmpty) return;
+
+      // 使用 _visibleCenterChapter 作为当前章节（这个值始终保持在可访问章节）
+      int currentIndex = _visibleCenterChapter.clamp(0, chapters.length - 1);
+
+      // 再次验证章节可访问性
+      if (!_isChapterAccessible(chapters[currentIndex])) {
+        currentIndex = _findEffectiveReadingPosition(chapters, currentIndex);
+      }
+
+      final chapterToSave = chapters[currentIndex];
+
+      // 计算章节内偏移
+      double chapterOffset = 0;
+      if (_chapterHeights.isNotEmpty) {
+        chapterOffset = _scrollController.offset;
+        final sortedIndices = _chapterHeights.keys.toList()..sort();
+        for (final index in sortedIndices) {
+          if (index >= currentIndex) break;
+          chapterOffset -= _chapterHeights[index] ?? 0;
+        }
+        chapterOffset = chapterOffset.clamp(0, double.infinity);
+      }
+
+      await _progressService.saveReadingProgress(
+        bookId: bookId,
+        chapterIndex: currentIndex,
+        chapterId: chapterToSave.id,
+        scrollOffset: chapterOffset,
+      );
+
+      debugPrint('ForceSaveProgress: Saved at chapter $currentIndex, offset=$chapterOffset');
+    });
   }
 
   /// Track passcode 'open' action when opening a book via passcode
@@ -251,6 +329,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   /// Detect which chapter is currently visible and update cache center
   void _detectVisibleChapter() {
+    // 初始化期间不进行章节检测，避免与初始化逻辑冲突
+    if (_isInitializing) return;
     if (!_scrollController.hasClients || _chapterHeights.isEmpty) return;
 
     final scrollOffset = _scrollController.offset;
@@ -280,17 +360,27 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
         // Re-check if still the same chapter after debounce
         if (detectedChapter == _lastDetectedChapter && detectedChapter != _visibleCenterChapter) {
-          _visibleCenterChapter = detectedChapter!;
-          ref.read(currentChapterIndexProvider.notifier).setIndex(detectedChapter);
-
-          // Update chapter cache center (only for preloading, don't change render window)
           final bookId = int.parse(widget.bookId);
           final readerDataAsync = ref.read(readerDataProvider(bookId));
-          readerDataAsync.whenData((readerData) {
-            ref.read(chapterCacheProvider(bookId).notifier).updateCenter(detectedChapter!, readerData);
-          });
 
-          debugPrint('Detected visible chapter: $detectedChapter');
+          readerDataAsync.whenData((readerData) {
+            final chapter = readerData.chapters[detectedChapter!];
+            final canAccess = _isChapterAccessible(chapter);
+
+            if (canAccess) {
+              // 可访问章节：正常更新位置
+              _visibleCenterChapter = detectedChapter;
+              ref.read(currentChapterIndexProvider.notifier).setIndex(detectedChapter);
+              debugPrint('Detected visible chapter: $detectedChapter (accessible)');
+            } else {
+              // 不可访问章节：不更新 _visibleCenterChapter，保持在最后可访问位置
+              // 这样进度保存时会保存最后可访问的章节
+              debugPrint('Detected chapter $detectedChapter but not accessible, keeping position at $_visibleCenterChapter');
+            }
+
+            // 更新章节缓存中心用于预加载（无论是否可访问都更新）
+            ref.read(chapterCacheProvider(bookId).notifier).updateCenter(detectedChapter, readerData);
+          });
         }
       });
 
@@ -299,15 +389,26 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   }
 
   Future<void> _saveCurrentProgress() async {
+    // 初始化期间不保存进度
+    if (_isInitializing) return;
     if (!mounted || !_scrollController.hasClients) return;
 
     final bookId = int.parse(widget.bookId);
     final readerDataAsync = ref.read(readerDataProvider(bookId));
 
     readerDataAsync.whenData((readerData) async {
-      final currentIndex = ref.read(currentChapterIndexProvider);
-      if (currentIndex >= 0 && currentIndex < readerData.chapters.length) {
-        final currentChapter = readerData.chapters[currentIndex];
+      final chapters = readerData.chapters;
+      int currentIndex = ref.read(currentChapterIndexProvider);
+
+      if (currentIndex >= 0 && currentIndex < chapters.length) {
+        // 确保只保存到可访问的章节
+        // 如果当前章节不可访问，找到最后一个可访问的章节
+        if (!_isChapterAccessible(chapters[currentIndex])) {
+          currentIndex = _findEffectiveReadingPosition(chapters, currentIndex);
+          debugPrint('SaveProgress: Adjusted to accessible chapter $currentIndex');
+        }
+
+        final chapterToSave = chapters[currentIndex];
 
         // Calculate scroll offset within current chapter
         double chapterOffset = _scrollController.offset;
@@ -320,34 +421,114 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         await _progressService.saveReadingProgress(
           bookId: bookId,
           chapterIndex: currentIndex,
-          chapterId: currentChapter.id,
+          chapterId: chapterToSave.id,
           scrollOffset: chapterOffset.clamp(0, double.infinity),
         );
+
+        debugPrint('SaveProgress: Saved progress at chapter $currentIndex, offset=$chapterOffset');
       }
     });
   }
 
   /// Initialize chapter cache with saved progress
   Future<void> _initializeChapterCache(ReaderData readerData) async {
-    debugPrint('ReaderScreen: Initializing chapter cache');
+    debugPrint('ReaderScreen: Initializing chapter cache, keepCurrentPosition=$_keepCurrentPositionOnReinit');
+
+    // 设置初始化锁
+    _isInitializing = true;
     _isInitialized = true;
 
     final bookId = int.parse(widget.bookId);
-    final progress = await _progressService.getReadingProgress(bookId);
+    final chapters = readerData.chapters;
 
-    int startIndex = 0;
-    if (progress != null) {
-      startIndex = progress.chapterIndex.clamp(0, readerData.chapters.length - 1);
+    int startIndex;
+    double scrollOffset = 0;
+
+    if (_keepCurrentPositionOnReinit) {
+      // 订阅/登录状态变化后：保持当前可见位置
+      // 但需要验证当前位置是否可访问
+      final currentPos = _visibleCenterChapter.clamp(0, chapters.length - 1);
+      if (_isChapterAccessible(chapters[currentPos])) {
+        startIndex = currentPos;
+      } else {
+        // 当前位置不可访问（比如订阅过期），回退到最后可访问章节
+        startIndex = _findEffectiveReadingPosition(chapters, currentPos);
+      }
+      debugPrint('ReaderScreen: Using current position after state change, chapter=$startIndex, savedOffset=$_savedScrollOffsetBeforeReinit');
+      _keepCurrentPositionOnReinit = false;
+    } else {
+      // 正常初始化：使用保存的进度
+      final progress = await _progressService.getReadingProgress(bookId);
+
+      if (progress != null) {
+        final savedIndex = progress.chapterIndex.clamp(0, chapters.length - 1);
+
+        // 验证保存的章节是否可访问
+        if (_isChapterAccessible(chapters[savedIndex])) {
+          startIndex = savedIndex;
+          scrollOffset = progress.scrollOffset;
+          debugPrint('ReaderScreen: Using saved progress, chapter=$startIndex, offset=$scrollOffset');
+        } else {
+          // 保存的章节不可访问，回退到最后可访问章节
+          startIndex = _findEffectiveReadingPosition(chapters, savedIndex);
+          scrollOffset = 0; // 章节变了，重置滚动偏移
+          debugPrint('ReaderScreen: Saved chapter $savedIndex not accessible, adjusted to chapter $startIndex');
+        }
+      } else {
+        startIndex = 0;
+        debugPrint('ReaderScreen: No saved progress, starting from chapter 0');
+      }
     }
 
+    // 一次性设置所有状态
     _visibleCenterChapter = startIndex;
     ref.read(currentChapterIndexProvider.notifier).setIndex(startIndex);
-    await ref.read(chapterCacheProvider(bookId).notifier).initializeAt(startIndex, readerData);
 
-    // Restore scroll position after a short delay
-    if (_shouldRestoreScrollPosition && progress != null) {
+    // 检查 chapterCache 是否已初始化
+    final cacheState = ref.read(chapterCacheProvider(bookId));
+    if (cacheState.isInitialized && _savedScrollOffsetBeforeReinit != null) {
+      // 权限变化后的重新加载：保持缓存结构，但重新加载所有章节内容
+      // 这样可以避免 UI 闪烁，同时获取新权限下的内容
+      debugPrint('ReaderScreen: Reloading chapters with new permissions');
+      await ref.read(chapterCacheProvider(bookId).notifier).reloadAllChapters(readerData);
+    } else if (cacheState.isInitialized) {
+      // 缓存已初始化但不是权限变化，只更新中心位置
+      await ref.read(chapterCacheProvider(bookId).notifier).updateCenter(startIndex, readerData);
+    } else {
+      // 缓存未初始化，完整初始化
+      await ref.read(chapterCacheProvider(bookId).notifier).initializeAt(startIndex, readerData);
+    }
+
+    // 判断是否需要恢复滚动位置
+    final savedOffset = _savedScrollOffsetBeforeReinit;
+    final needsScrollRestore = (_shouldRestoreScrollPosition && scrollOffset > 0) || savedOffset != null;
+
+    if (needsScrollRestore) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _restoreScrollPosition(startIndex, progress.scrollOffset);
+        if (savedOffset != null) {
+          // 状态变化后恢复：直接跳转到保存的绝对滚动位置
+          _restoreAbsoluteScrollPosition(savedOffset);
+          _savedScrollOffsetBeforeReinit = null;
+        } else {
+          // 正常恢复：基于章节和偏移计算位置
+          _restoreScrollPosition(startIndex, scrollOffset);
+        }
+
+        // 滚动恢复完成后解除初始化锁
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _isInitializing = false;
+            debugPrint('ReaderScreen: Initialization complete (with scroll restore)');
+          }
+        });
+      });
+    } else {
+      // 没有滚动恢复时，短暂延迟后解除初始化锁
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) {
+          _isInitializing = false;
+          debugPrint('ReaderScreen: Initialization complete');
+        }
       });
     }
   }
@@ -356,19 +537,58 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   void _reinitializeAfterSubscription() {
     final bookId = int.parse(widget.bookId);
 
-    // Reset local state
+    debugPrint('ReaderScreen: Reinitializing after subscription success');
+
+    // 保持当前位置，用户刚订阅成功应该继续阅读当前位置
+    _keepCurrentPositionOnReinit = true;
+
+    // 保存当前滚动位置
+    if (_scrollController.hasClients) {
+      _savedScrollOffsetBeforeReinit = _scrollController.offset;
+      debugPrint('ReaderScreen: Saved scroll offset before subscription reinit: $_savedScrollOffsetBeforeReinit');
+    }
+
     setState(() {
       _isInitialized = false;
-      _chapterKeys.clear();
-      _chapterHeights.clear();
       _lastDetectedChapter = -1;
     });
 
-    // Invalidate providers to refresh data
+    // 只刷新 readerData 获取新权限，不清空章节缓存（避免闪烁）
     ref.invalidate(readerDataProvider(bookId));
-    ref.invalidate(chapterCacheProvider(bookId));
+    // 不 invalidate chapterCacheProvider，保持已加载的章节内容
+  }
 
-    debugPrint('ReaderScreen: Reinitialized after subscription');
+  /// Restore scroll position to an absolute offset (used after auth/subscription changes)
+  Future<void> _restoreAbsoluteScrollPosition(double absoluteOffset) async {
+    if (!mounted || !_scrollController.hasClients) return;
+    _isRestoringScroll = true;
+
+    // Wait for layout to complete
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    if (!mounted || !_scrollController.hasClients) {
+      _isRestoringScroll = false;
+      return;
+    }
+
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final targetOffset = absoluteOffset.clamp(0.0, maxScroll);
+
+    debugPrint('ReaderScreen: Restoring absolute scroll position: $targetOffset (requested: $absoluteOffset, max: $maxScroll)');
+    _scrollController.jumpTo(targetOffset);
+
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        _isRestoringScroll = false;
+        // 滚动恢复完成后，触发一次进度保存
+        // 此时 _chapterHeights 应该已经重新计算完成
+        Future.delayed(const Duration(milliseconds: 200), () {
+          if (mounted) {
+            _saveCurrentProgress();
+          }
+        });
+      }
+    });
   }
 
   /// Restore scroll position to saved chapter and offset
@@ -450,16 +670,28 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       final previousUserId = previous?.value?.id;
       final nextUserId = next.value?.id;
       if (previousUserId != nextUserId) {
-        debugPrint('ReaderScreen: Auth state changed, invalidating providers');
-        // Invalidate providers to force refresh
-        // The cache's isInitialized will become false, triggering reinitialization
-        // in _buildReaderContent with the new data
+        debugPrint('ReaderScreen: Auth state changed (user: $previousUserId -> $nextUserId)');
+
+        // 如果页面已初始化，保持当前位置和滚动偏移
+        final wasInitialized = _isInitialized;
+        if (wasInitialized) {
+          _keepCurrentPositionOnReinit = true;
+          // 保存当前滚动位置
+          if (_scrollController.hasClients) {
+            _savedScrollOffsetBeforeReinit = _scrollController.offset;
+            debugPrint('ReaderScreen: Saved scroll offset: $_savedScrollOffsetBeforeReinit');
+          }
+        }
+
+        // 只刷新 readerData 获取新权限，不清空章节缓存（避免闪烁）
         ref.invalidate(readerDataProvider(bookId));
-        ref.invalidate(chapterCacheProvider(bookId));
-        // Clear local state for scroll tracking
+        // 只有首次加载时才需要 invalidate chapterCache
+        if (!wasInitialized) {
+          ref.invalidate(chapterCacheProvider(bookId));
+        }
+
         setState(() {
-          _chapterKeys.clear();
-          _chapterHeights.clear();
+          _isInitialized = false;
           _lastDetectedChapter = -1;
         });
       }
@@ -551,14 +783,24 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     final needsInitialization = !_isInitialized || !cacheState.isInitialized || subscriptionChanged;
     if (needsInitialization) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        debugPrint('ReaderScreen: Initializing chapter cache, _isInitialized=$_isInitialized, cacheInitialized=${cacheState.isInitialized}, subscriptionChanged=$subscriptionChanged');
+        debugPrint('ReaderScreen: Need initialization, _isInitialized=$_isInitialized, cacheInitialized=${cacheState.isInitialized}, subscriptionChanged=$subscriptionChanged');
+
         // Invalidate cache if subscription changed to clear old data
         if (subscriptionChanged) {
-          debugPrint('ReaderScreen: Subscription changed, invalidating cache');
+          debugPrint('ReaderScreen: Subscription changed, keeping current position');
+          // 订阅状态变化时保持当前位置
+          if (_isInitialized) {
+            _keepCurrentPositionOnReinit = true;
+          }
           ref.invalidate(chapterCacheProvider(bookId));
         }
+
+        // 记录是否是首次初始化（用于添加阅读历史）
+        final isFirstInit = !_isInitialized;
+
         _initializeChapterCache(readerData);
-        if (!_isInitialized) {
+
+        if (isFirstInit) {
           ref.read(readingHistoryProvider.notifier).addOrUpdateHistory(
                 bookId: widget.bookId,
                 title: book.title,
