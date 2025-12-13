@@ -98,6 +98,38 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   bool _isChapterAccessible(ChapterVO chapter) {
     return chapter.canAccess ?? chapter.isFree;
   }
+
+  /// 检查指定章节索引范围内的高度是否已全部计算完成
+  /// 用于确保滚动位置计算的准确性
+  bool _areChapterHeightsReady(int upToIndex) {
+    for (int i = 0; i <= upToIndex; i++) {
+      if (!_chapterHeights.containsKey(i)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /// 等待章节高度计算完成
+  /// [upToIndex] 需要等待高度计算完成的最大章节索引
+  /// 最多等待2秒，防止无限等待
+  Future<bool> _waitForChapterHeights(int upToIndex) async {
+    const maxAttempts = 40; // 40 * 50ms = 2秒
+    int attempts = 0;
+
+    while (attempts < maxAttempts && mounted) {
+      if (_areChapterHeightsReady(upToIndex)) {
+        debugPrint('ChapterHeights: Ready for chapters 0-$upToIndex after ${attempts * 50}ms');
+        return true;
+      }
+      await Future.delayed(const Duration(milliseconds: 50));
+      attempts++;
+    }
+
+    debugPrint('ChapterHeights: Timeout waiting for chapters 0-$upToIndex, available: ${_chapterHeights.keys.toList()}');
+    return false;
+  }
+
   String _bookAuthor = '';
   String? _bookCoverUrl;
   String _bookCategory = '';
@@ -333,6 +365,30 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     if (_isInitializing) return;
     if (!_scrollController.hasClients || _chapterHeights.isEmpty) return;
 
+    // 检查当前可见区域相关章节的高度是否稳定
+    // 只有当当前章节及相邻章节的高度都已计算时才进行检测
+    // 这可以避免高度更新过程中的错误检测
+    final currentCenter = _visibleCenterChapter;
+    final minRequiredIndex = (currentCenter - 1).clamp(0, 999);
+    final maxRequiredIndex = (currentCenter + 1).clamp(0, 999);
+
+    // 检查相关章节高度是否已计算
+    bool heightsStable = true;
+    for (int i = minRequiredIndex; i <= maxRequiredIndex; i++) {
+      if (_chapterHeights.containsKey(i)) continue;
+      // 如果这个索引在已加载的章节范围内但高度未计算，说明不稳定
+      final sortedIndices = _chapterHeights.keys.toList()..sort();
+      if (sortedIndices.isNotEmpty && i >= sortedIndices.first && i <= sortedIndices.last) {
+        heightsStable = false;
+        break;
+      }
+    }
+
+    if (!heightsStable) {
+      debugPrint('DetectChapter: Heights not stable, skipping detection');
+      return;
+    }
+
     final scrollOffset = _scrollController.offset;
     final viewportHeight = _scrollController.position.viewportDimension;
     final viewportCenter = scrollOffset + viewportHeight / 2;
@@ -504,30 +560,33 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     final needsScrollRestore = (_shouldRestoreScrollPosition && scrollOffset > 0) || savedOffset != null;
 
     if (needsScrollRestore) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (savedOffset != null) {
           // 状态变化后恢复：直接跳转到保存的绝对滚动位置
-          _restoreAbsoluteScrollPosition(savedOffset);
+          await _restoreAbsoluteScrollPosition(savedOffset);
           _savedScrollOffsetBeforeReinit = null;
         } else {
           // 正常恢复：基于章节和偏移计算位置
-          _restoreScrollPosition(startIndex, scrollOffset);
+          await _restoreScrollPosition(startIndex, scrollOffset);
         }
 
         // 滚动恢复完成后解除初始化锁
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted) {
-            _isInitializing = false;
-            debugPrint('ReaderScreen: Initialization complete (with scroll restore)');
-          }
-        });
-      });
-    } else {
-      // 没有滚动恢复时，短暂延迟后解除初始化锁
-      Future.delayed(const Duration(milliseconds: 300), () {
+        // 由于滚动恢复方法内部已经等待了高度计算，这里只需短暂延迟
         if (mounted) {
           _isInitializing = false;
-          debugPrint('ReaderScreen: Initialization complete');
+          debugPrint('ReaderScreen: Initialization complete (with scroll restore)');
+        }
+      });
+    } else {
+      // 没有滚动恢复时，等待初始章节高度计算完成后解除初始化锁
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        // 等待起始章节及相邻章节的高度计算完成
+        final waitIndex = (startIndex + 1).clamp(0, chapters.length - 1);
+        await _waitForChapterHeights(waitIndex);
+
+        if (mounted) {
+          _isInitializing = false;
+          debugPrint('ReaderScreen: Initialization complete (no scroll restore)');
         }
       });
     }
@@ -563,8 +622,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     if (!mounted || !_scrollController.hasClients) return;
     _isRestoringScroll = true;
 
-    // Wait for layout to complete
-    await Future.delayed(const Duration(milliseconds: 300));
+    debugPrint('RestoreAbsoluteScroll: Starting restore to offset $absoluteOffset');
+
+    // 等待当前可见章节的高度计算完成
+    // 对于绝对位置恢复，等待当前中心章节及相邻章节
+    final centerIndex = _visibleCenterChapter;
+    final waitIndex = (centerIndex + 1).clamp(0, 999); // 等待中心章节和下一章节
+    await _waitForChapterHeights(waitIndex);
 
     if (!mounted || !_scrollController.hasClients) {
       _isRestoringScroll = false;
@@ -574,14 +638,15 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     final maxScroll = _scrollController.position.maxScrollExtent;
     final targetOffset = absoluteOffset.clamp(0.0, maxScroll);
 
-    debugPrint('ReaderScreen: Restoring absolute scroll position: $targetOffset (requested: $absoluteOffset, max: $maxScroll)');
+    debugPrint('RestoreAbsoluteScroll: Jumping to offset $targetOffset (requested: $absoluteOffset, max: $maxScroll)');
     _scrollController.jumpTo(targetOffset);
 
-    Future.delayed(const Duration(milliseconds: 500), () {
+    // 短暂延迟后解除恢复标志并保存进度
+    Future.delayed(const Duration(milliseconds: 300), () {
       if (mounted) {
         _isRestoringScroll = false;
+        debugPrint('RestoreAbsoluteScroll: Restore complete');
         // 滚动恢复完成后，触发一次进度保存
-        // 此时 _chapterHeights 应该已经重新计算完成
         Future.delayed(const Duration(milliseconds: 200), () {
           if (mounted) {
             _saveCurrentProgress();
@@ -596,12 +661,19 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     if (!mounted || !_scrollController.hasClients) return;
     _isRestoringScroll = true;
 
-    // Wait for layout to complete
-    await Future.delayed(const Duration(milliseconds: 300));
+    debugPrint('RestoreScroll: Starting restore to chapter $chapterIndex, offset $chapterOffset');
+
+    // 等待目标章节及之前所有章节的高度计算完成
+    // 这确保滚动位置计算准确
+    final heightsReady = await _waitForChapterHeights(chapterIndex);
 
     if (!mounted || !_scrollController.hasClients) {
       _isRestoringScroll = false;
       return;
+    }
+
+    if (!heightsReady) {
+      debugPrint('RestoreScroll: Heights not ready, using available data');
     }
 
     // Calculate absolute scroll position
@@ -616,12 +688,15 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     final maxScroll = _scrollController.position.maxScrollExtent;
     final targetOffset = absoluteOffset.clamp(0.0, maxScroll);
 
+    debugPrint('RestoreScroll: Jumping to offset $targetOffset (calculated: $absoluteOffset, max: $maxScroll)');
     _scrollController.jumpTo(targetOffset);
     _shouldRestoreScrollPosition = false;
 
-    Future.delayed(const Duration(milliseconds: 500), () {
+    // 短暂延迟后解除恢复标志，允许正常滚动处理
+    Future.delayed(const Duration(milliseconds: 300), () {
       if (mounted) {
         _isRestoringScroll = false;
+        debugPrint('RestoreScroll: Restore complete');
       }
     });
   }
@@ -867,11 +942,61 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     final chapters = readerData.chapters;
     final loadedChapters = cacheState.loadedChapters;
 
-    // Render all loaded chapters in order (stable, no jumping)
-    // This prevents layout changes when currentIndex updates
-    final renderIndices = loadedChapters.keys.toList()..sort();
+    // 关键修复：初始化期间，等待当前章节及之前的章节都加载完成后再渲染
+    // 这防止了章节乱跳问题：
+    // - 例如保存进度在章节2，需要加载章节1,2,3
+    // - 如果章节3先完成（无权限不需要API调用），直接渲染会先显示章节3
+    // - 然后章节1,2加载完后插入前面，导致页面跳转
+    // 解决方案：初始化期间只在所有前置章节加载完成后才渲染
 
-    // If no chapters loaded yet, show loading for current chapter
+    final sortedIndices = loadedChapters.keys.toList()..sort();
+    final renderIndices = <int>[];
+
+    if (sortedIndices.isNotEmpty) {
+      if (_isInitializing) {
+        // 初始化期间：必须等待当前章节及之前所有章节加载完成
+        // 检查从第一个已加载章节到当前章节是否连续
+        final windowStart = sortedIndices.first;
+        final targetChapter = _visibleCenterChapter;
+
+        // 检查从 windowStart 到 targetChapter 的章节是否都已加载
+        bool allPreChaptersLoaded = true;
+        for (int i = windowStart; i <= targetChapter; i++) {
+          if (!loadedChapters.containsKey(i)) {
+            allPreChaptersLoaded = false;
+            break;
+          }
+        }
+
+        if (allPreChaptersLoaded) {
+          // 所有前置章节都已加载，可以渲染连续的章节
+          int expectedIndex = windowStart;
+          for (final index in sortedIndices) {
+            if (index == expectedIndex) {
+              renderIndices.add(index);
+              expectedIndex++;
+            } else {
+              break;
+            }
+          }
+        }
+        // 如果前置章节未完成，renderIndices 保持为空，显示 loading
+      } else {
+        // 非初始化期间：正常渲染所有连续章节
+        final windowStart = sortedIndices.first;
+        int expectedIndex = windowStart;
+        for (final index in sortedIndices) {
+          if (index == expectedIndex) {
+            renderIndices.add(index);
+            expectedIndex++;
+          } else {
+            break;
+          }
+        }
+      }
+    }
+
+    // If no chapters ready to render, show loading for current chapter
     if (renderIndices.isEmpty) {
       renderIndices.add(currentIndex.clamp(0, chapters.length - 1));
     }

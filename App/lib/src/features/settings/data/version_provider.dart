@@ -24,17 +24,26 @@ class VersionCheck extends _$VersionCheck {
   Future<VersionInfo?> checkForUpdate() async {
     try {
       final packageInfo = await ref.read(packageInfoProvider.future);
+      // 检查 provider 是否仍然有效
+      if (!ref.mounted) return null;
+
       final versionApiService = ref.read(versionApiServiceProvider);
 
       // Get build number as version code
       final versionCode = int.tryParse(packageInfo.buildNumber) ?? 1;
 
       final versionInfo = await versionApiService.checkVersion(versionCode);
+      // 异步操作后再次检查 provider 是否仍然有效
+      if (!ref.mounted) return versionInfo;
+
       state = AsyncData(versionInfo);
       return versionInfo;
     } catch (e) {
       debugPrint('Error checking version: $e');
-      state = const AsyncData(null);
+      // 检查 provider 是否仍然有效
+      if (ref.mounted) {
+        state = const AsyncData(null);
+      }
       return null;
     }
   }
